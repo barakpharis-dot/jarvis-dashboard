@@ -121,21 +121,49 @@ def sync():
         }
         supabase.table("emails").upsert(row).execute()
 
-        if result.get("action_needed"):
+      if result.get("action_needed"):
             existing = supabase.table("tasks").select("id").eq("source_email_id", email["id"]).execute()
             if not existing.data:
-                supabase.table("tasks").insert({
+                task_row = {
                     "text": result["action_needed"],
                     "due_date": result.get("due_date"),
                     "due_time": result.get("due_time"),
                     "source": "ai",
                     "source_email_id": email["id"],
                     "done": False,
-                }).execute()
-
+                }
+                if task_row["due_date"]:
+                    try:
+                        task_row["calendar_event_link"] = _create_calendar_event(creds, task_row["text"], task_row["due_date"], task_row["due_time"])
+                    except Exception as e:
+                        print(f"Could not auto-create calendar event for task: {e}")
+                supabase.table("tasks").insert(task_row).execute()
         results.append(row)
 
     return {"synced": len(results), "emails": results}
+
+
+def _create_calendar_event(creds, summary, date, time=None):
+    service = get_calendar_service(creds)
+    if time:
+        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+        end_dt = start_dt + timedelta(hours=1)
+        event = {
+            "summary": summary,
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
+            "description": "Added from JARVIS",
+        }
+    else:
+        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
+        event = {
+            "summary": summary,
+            "start": {"date": date},
+            "end": {"date": end_date},
+            "description": "Added from JARVIS",
+        }
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    return created.get("htmlLink")
 
 
 @app.post("/calendar/event")
@@ -144,51 +172,13 @@ def create_calendar_event(payload: dict):
     creds = load_credentials()
     if not creds:
         return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    link = _create_calendar_event(creds, payload["summary"], payload["date"], payload.get("time"))
+    return {"status": "created", "link": link}
 
-    service = get_calendar_service(creds)
-    date = payload["date"]
-    time = payload.get("time")
-
-    if time:
-        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
-        end_dt = start_dt + timedelta(hours=1)
-        event = {
-            "summary": payload["summary"],
-            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
-            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
-            "description": "Added from JARVIS",
-        }
-    else:
-        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
-        event = {
-            "summary": payload["summary"],
-            "start": {"date": date},
-            "end": {"date": end_date},
-            "description": "Added from JARVIS",
-        }
-
-    created = service.events().insert(calendarId="primary", body=event).execute()
-    return {"status": "created", "link": created.get("htmlLink")}
-
-
-@app.get("/tasks")
-def list_tasks():
-    return supabase.table("tasks").select("*").order("due_date").execute().data
-
-
-@app.post("/tasks")
-def create_task(payload: dict):
-    """payload = {"text": "...", "due_date": "YYYY-MM-DD" (optional), "due_time": "HH:MM" (optional)}"""
-    row = {
-        "text": payload["text"],
-        "due_date": payload.get("due_date"),
-        "due_time": payload.get("due_time"),
-        "source": "manual",
-        "done": False,
-    }
-    created = supabase.table("tasks").insert(row).execute()
-    return created.data[0]
-
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str):
+    supabase.table("tasks").delete().eq("id", task_id).execute()
+    return {"status": "deleted"}
 
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: str, payload: dict):

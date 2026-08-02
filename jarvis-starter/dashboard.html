@@ -189,6 +189,27 @@
   .tab.on{background:var(--teal-dim); color:var(--teal); border-color:var(--teal);}
 
   /* email card */
+  .bulk-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:14px;padding:10px 14px;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  }
+  .bulk-select-all{
+    display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);cursor:pointer;
+  }
+  .bulk-select-all input{accent-color:var(--teal);cursor:pointer;}
+  .btn-delete-bulk{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    background:transparent;color:var(--red);border:1px solid var(--red);
+    border-radius:6px;padding:7px 14px;cursor:pointer;
+  }
+  .btn-delete-bulk:hover:not(:disabled){background:var(--red);color:var(--bg);}
+  .btn-delete-bulk:disabled{opacity:0.35;cursor:not-allowed;}
+  .card-select{
+    display:inline-flex;float:right;margin-left:10px;cursor:pointer;
+  }
+  .card-select input{accent-color:var(--teal);cursor:pointer;width:15px;height:15px;}
+
   .card{
     background:var(--panel);
     border:1px solid var(--border);
@@ -352,10 +373,28 @@
   .cal-link.cal-loading{opacity:0.5;}
   .cal-link.cal-added{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:pointer;}
   .cal-link.cal-error{border-color:var(--red);color:var(--red);}
+  .task-dismiss{
+    background:transparent;border:none;color:var(--text-dim);
+    cursor:pointer;font-size:13px;padding:4px 6px;flex-shrink:0;line-height:1;
+  }
+  .task-dismiss:hover{color:var(--red);}
 
-  .add-task-form{
+  .add-task-toggle{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:transparent;color:var(--teal);border:1px dashed var(--teal-dim);
+    border-radius:8px;padding:9px 16px;cursor:pointer;margin-bottom:14px;width:100%;text-align:left;
+  }
+  .add-task-toggle:hover{border-style:solid;}
+  .add-task-form{display:none;}
+  .add-task-form.open{
     display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;
   }
+  .add-task-cancel{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:transparent;color:var(--text-dim);border:1px solid var(--border);
+    border-radius:8px;padding:9px 14px;cursor:pointer;
+  }
+  .add-task-cancel:hover{color:var(--text);border-color:var(--text-dim);}
   .add-task-form input[type="text"]{
     flex:1;min-width:180px;
     background:var(--panel);border:1px solid var(--border);border-radius:8px;
@@ -444,10 +483,19 @@
     </div>
     <div class="tabs mono">
       <button class="tab on" data-tab="all">all</button>
+      <button class="tab" data-tab="parents">parents</button>
+      <button class="tab" data-tab="principals">principals</button>
+      <button class="tab" data-tab="colleagues">colleagues</button>
+      <button class="tab" data-tab="school-ops">school-ops</button>
+      <button class="tab" data-tab="personal">personal</button>
       <button class="tab" data-tab="finance">finance</button>
-      <button class="tab" data-tab="networking">networking</button>
-      <button class="tab" data-tab="family">family</button>
       <button class="tab" data-tab="promotions">promotions</button>
+      <button class="tab" data-tab="other">other</button>
+    </div>
+
+    <div class="bulk-bar">
+      <label class="bulk-select-all"><input type="checkbox" id="selectAllEmails"> select all</label>
+      <button type="button" id="deleteSelectedBtn" class="btn-delete-bulk" disabled>Delete selected (<span id="selectedCount">0</span>)</button>
     </div>
 
     <div id="emailCards">
@@ -520,11 +568,13 @@
       <span><span class="swatch" style="background:var(--teal);"></span>lifted from an email</span>
     </div>
 
+    <button type="button" class="add-task-toggle" id="addTaskToggle">+ Add a task</button>
     <form class="add-task-form" id="addTaskForm">
       <input type="text" id="newTaskText" placeholder="Add your own task…" required>
       <input type="date" id="newTaskDate">
       <input type="time" id="newTaskTime">
       <button type="submit">Add</button>
+      <button type="button" class="add-task-cancel" id="addTaskCancel">Cancel</button>
     </form>
 
     <div class="week-strip" id="weekStrip"></div>
@@ -668,24 +718,45 @@
     }
   }
 
+  async function deleteTask(taskId, row) {
+    row.style.opacity = '0';
+    setTimeout(() => row.remove(), 150);
+    tasks = tasks.filter(t => t.id !== taskId);
+    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-')) return;
+    try {
+      await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
+    } catch (err) {
+      // local server not running -- task stays removed locally for this session
+    }
+  }
+
   function renderTasks() {
     taskList.innerHTML = '';
     tasks.forEach(t => {
       const row = document.createElement('div');
       row.className = 'task' + (t.done ? ' done' : '');
       const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
+      const synced = !!t.calendar_event_link;
       row.innerHTML = `
         <input type="checkbox" ${t.done ? 'checked' : ''}>
         <span class="task-text">${t.text}</span>
         <span class="tag ${t.source === 'ai' ? 'ai' : 'rule'}">${t.source === 'ai' ? 'AI' : 'MANUAL'}</span>
         <span class="task-due">${dueLabel(t.due_date)}${timeLabel}</span>
-        <button class="cal-link" type="button" title="Add to Google Calendar" aria-label="Add to Google Calendar">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <button class="cal-link ${synced ? 'cal-added' : ''}" type="button" title="${synced ? 'Already on Google Calendar' : 'Add to Google Calendar'}" aria-label="Add to Google Calendar">
+          ${synced
+            ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+            : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`}
         </button>
+        <button class="task-dismiss" type="button" title="Remove task" aria-label="Remove task">✕</button>
       `;
       row.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleTaskDone(t, e.target.checked));
       const btn = row.querySelector('.cal-link');
-      btn.addEventListener('click', () => addToRealCalendar(t.text, t.due_date, t.due_time, btn));
+      if (synced) {
+        btn.addEventListener('click', () => window.open(t.calendar_event_link, '_blank'));
+      } else {
+        btn.addEventListener('click', () => addToRealCalendar(t.text, t.due_date, t.due_time, btn));
+      }
+      row.querySelector('.task-dismiss').addEventListener('click', () => deleteTask(t.id, row));
       taskList.appendChild(row);
     });
     const open = tasks.filter(t => !t.done).length;
@@ -711,6 +782,8 @@
       tasks.push(localTask);
       renderTasks();
       textInput.value = ''; dateInput.value = ''; timeInput.value = '';
+      addTaskForm.classList.remove('open');
+      addTaskToggle.style.display = '';
 
       try {
         const res = await fetch(API_BASE + '/tasks', {
@@ -721,10 +794,28 @@
         if (res.ok) {
           const saved = await res.json();
           localTask.id = saved.id; // swap in the real id so checkbox/calendar sync works
+          localTask.calendar_event_link = saved.calendar_event_link || null;
+          renderTasks();
         }
       } catch (err) {
         // local server not running -- task stays local-only for this session
       }
+    });
+  }
+
+  const addTaskToggle = document.getElementById('addTaskToggle');
+  const addTaskCancel = document.getElementById('addTaskCancel');
+  if (addTaskToggle) {
+    addTaskToggle.addEventListener('click', () => {
+      addTaskForm.classList.add('open');
+      addTaskToggle.style.display = 'none';
+      document.getElementById('newTaskText').focus();
+    });
+  }
+  if (addTaskCancel) {
+    addTaskCancel.addEventListener('click', () => {
+      addTaskForm.classList.remove('open');
+      addTaskToggle.style.display = '';
     });
   }
 
@@ -737,7 +828,7 @@
       if (Array.isArray(liveTasks) && liveTasks.length > 0) {
         tasks = liveTasks.map(t => ({
           id: t.id, text: t.text, due_date: t.due_date, due_time: t.due_time,
-          source: t.source, done: t.done,
+          source: t.source, done: t.done, calendar_event_link: t.calendar_event_link || null,
         }));
         renderTasks();
       }
@@ -857,13 +948,73 @@
     container.querySelectorAll('.card').forEach(card => {
       if (card.dataset.wired) return;
       card.dataset.wired = 'true';
+
+      // select checkbox, injected into every card (mock or live)
+      const selectWrap = document.createElement('label');
+      selectWrap.className = 'card-select';
+      selectWrap.innerHTML = `<input type="checkbox" class="email-select-box">`;
+      selectWrap.addEventListener('click', e => e.stopPropagation());
+      selectWrap.querySelector('input').addEventListener('change', updateBulkBar);
+      card.insertBefore(selectWrap, card.firstChild);
+
       card.addEventListener('click', () => toggleCardExpand(card));
     });
   }
 
   wireCardExpansion(document.getElementById('emailCards'));
 
+  // ---- mass-delete controls ----
+  const selectAllBox = document.getElementById('selectAllEmails');
+  const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+  const selectedCountEl = document.getElementById('selectedCount');
+
+  function updateBulkBar() {
+    const checked = document.querySelectorAll('#emailCards .email-select-box:checked');
+    selectedCountEl.textContent = checked.length;
+    deleteSelectedBtn.disabled = checked.length === 0;
+  }
+
+  selectAllBox.addEventListener('change', () => {
+    document.querySelectorAll('#emailCards .email-select-box').forEach(cb => { cb.checked = selectAllBox.checked; });
+    updateBulkBar();
+  });
+
+  deleteSelectedBtn.addEventListener('click', async () => {
+    const checkedBoxes = Array.from(document.querySelectorAll('#emailCards .email-select-box:checked'));
+    if (checkedBoxes.length === 0) return;
+    if (!confirm(`Move ${checkedBoxes.length} email(s) to Trash? You can still recover them from Gmail for 30 days.`)) return;
+
+    deleteSelectedBtn.disabled = true;
+    deleteSelectedBtn.textContent = 'Deleting…';
+
+    for (const box of checkedBoxes) {
+      const card = box.closest('.card');
+      const emailId = card.dataset.id;
+      if (!emailId) { card.remove(); continue; } // sample card, just remove locally
+      try {
+        await fetch(`${API_BASE}/emails/${emailId}`, { method: 'DELETE' });
+        card.remove();
+      } catch (err) {
+        // leave the card in place if delete failed, so it's obvious something didn't go through
+      }
+    }
+    selectAllBox.checked = false;
+    deleteSelectedBtn.textContent = 'Delete selected (0)';
+    updateBulkBar();
+  });
+
+  // ---- category tabs (queries cards fresh each click, so it works after live data loads) ----
   const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      const cat = tab.dataset.tab;
+      document.querySelectorAll('#emailCards .card').forEach(c => {
+        c.classList.toggle('show', cat === 'all' || c.dataset.cat === cat);
+      });
+    });
+  });
 
   // ---- try to load real emails from the local backend ----
   (async function loadLiveEmails() {
@@ -904,17 +1055,6 @@
       // local server not running — demo data stays as-is, no error shown to the user
     }
   })();
-  const cards = document.querySelectorAll('.card');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('on'));
-      tab.classList.add('on');
-      const cat = tab.dataset.tab;
-      cards.forEach(c => {
-        c.classList.toggle('show', cat === 'all' || c.dataset.cat === cat);
-      });
-    });
-  });
 </script>
 
 </body>
