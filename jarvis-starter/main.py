@@ -121,7 +121,7 @@ def sync():
         }
         supabase.table("emails").upsert(row).execute()
 
-      if result.get("action_needed"):
+        if result.get("action_needed"):
             existing = supabase.table("tasks").select("id").eq("source_email_id", email["id"]).execute()
             if not existing.data:
                 task_row = {
