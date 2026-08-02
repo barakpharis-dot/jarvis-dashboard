@@ -13,14 +13,15 @@ from datetime import datetime, timedelta
 import base64
 import email.utils
 from email.mime.text import MIMEText
+
+
+app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 @app.get("/")
 def serve_dashboard():
     return FileResponse("dashboard.html")
-
-app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
