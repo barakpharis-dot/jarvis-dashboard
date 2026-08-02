@@ -1,0 +1,249 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse, JSONResponse
+from supabase import create_client
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from gmail_client import build_flow, get_gmail_service, get_calendar_service, fetch_recent_messages
+from classifier import classify
+from datetime import datetime, timedelta
+import base64
+import email.utils
+from email.mime.text import MIMEText
+
+app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+
+def save_credentials(creds: dict):
+    row = {
+        "id": "me",
+        "token": creds["token"],
+        "refresh_token": creds["refresh_token"],
+        "token_uri": creds["token_uri"],
+        "client_id": creds["client_id"],
+        "client_secret": creds["client_secret"],
+        "scopes": ",".join(creds["scopes"]) if creds.get("scopes") else "",
+    }
+    supabase.table("app_credentials").upsert(row).execute()
+
+
+def load_credentials():
+    result = supabase.table("app_credentials").select("*").eq("id", "me").execute()
+    if not result.data:
+        return None
+    row = result.data[0]
+    return {
+        "token": row["token"],
+        "refresh_token": row["refresh_token"],
+        "token_uri": row["token_uri"],
+        "client_id": row["client_id"],
+        "client_secret": row["client_secret"],
+        "scopes": row["scopes"].split(",") if row["scopes"] else [],
+    }
+
+
+@app.get("/auth/start")
+def auth_start():
+    flow = build_flow()
+    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+    return RedirectResponse(auth_url)
+
+
+@app.get("/auth/callback")
+def auth_callback(request: Request):
+    flow = build_flow()
+    flow.fetch_token(authorization_response=str(request.url))
+    creds = flow.credentials
+    save_credentials({
+        "token": creds.token,
+        "refresh_token": creds.refresh_token,
+        "token_uri": creds.token_uri,
+        "client_id": creds.client_id,
+        "client_secret": creds.client_secret,
+        "scopes": creds.scopes,
+    })
+    return JSONResponse({"status": "connected"})
+
+
+@app.post("/sync")
+def sync():
+    """Pulls recent emails, classifies each, and upserts into Supabase."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+
+    service = get_gmail_service(creds)
+    messages = fetch_recent_messages(service)
+
+    results = []
+    for email in messages:
+        try:
+            result = classify(email)
+        except Exception as e:
+            print(f"Skipping email {email['id']} ({email['subject']}) — classification error: {e}")
+            continue
+
+        row = {
+            "id": email["id"],
+            "sender": email["sender"],
+            "subject": email["subject"],
+            "category": result["category"],
+            "summary": result["summary"],
+            "action_needed": result.get("action_needed"),
+            "body": email["body"],
+            "full_summary": result.get("full_summary"),
+            "needs_reply": result.get("needs_reply", False),
+            "source": result["source"],
+            "confidence": result.get("confidence"),
+            "received_at": email["received_at"],
+            "due_date": result.get("due_date"),
+            "due_time": result.get("due_time"),
+            "thread_id": email["thread_id"],
+            "message_id_header": email.get("message_id_header"),
+        }
+        supabase.table("emails").upsert(row).execute()
+
+        if result.get("action_needed"):
+            existing = supabase.table("tasks").select("id").eq("source_email_id", email["id"]).execute()
+            if not existing.data:
+                supabase.table("tasks").insert({
+                    "text": result["action_needed"],
+                    "due_date": result.get("due_date"),
+                    "due_time": result.get("due_time"),
+                    "source": "ai",
+                    "source_email_id": email["id"],
+                    "done": False,
+                }).execute()
+
+        results.append(row)
+
+    return {"synced": len(results), "emails": results}
+
+
+@app.post("/calendar/event")
+def create_calendar_event(payload: dict):
+    """payload = {"summary": "...", "date": "YYYY-MM-DD", "time": "HH:MM" (optional)}"""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+
+    service = get_calendar_service(creds)
+    date = payload["date"]
+    time = payload.get("time")
+
+    if time:
+        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+        end_dt = start_dt + timedelta(hours=1)
+        event = {
+            "summary": payload["summary"],
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
+            "description": "Added from JARVIS",
+        }
+    else:
+        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
+        event = {
+            "summary": payload["summary"],
+            "start": {"date": date},
+            "end": {"date": end_date},
+            "description": "Added from JARVIS",
+        }
+
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    return {"status": "created", "link": created.get("htmlLink")}
+
+
+@app.get("/tasks")
+def list_tasks():
+    return supabase.table("tasks").select("*").order("due_date").execute().data
+
+
+@app.post("/tasks")
+def create_task(payload: dict):
+    """payload = {"text": "...", "due_date": "YYYY-MM-DD" (optional), "due_time": "HH:MM" (optional)}"""
+    row = {
+        "text": payload["text"],
+        "due_date": payload.get("due_date"),
+        "due_time": payload.get("due_time"),
+        "source": "manual",
+        "done": False,
+    }
+    created = supabase.table("tasks").insert(row).execute()
+    return created.data[0]
+
+
+@app.patch("/tasks/{task_id}")
+def update_task(task_id: str, payload: dict):
+    """payload = {"done": true or false}"""
+    supabase.table("tasks").update({"done": payload["done"]}).eq("id", task_id).execute()
+    return {"status": "updated"}
+
+
+@app.get("/emails")
+def list_emails(category: str | None = None):
+    query = supabase.table("emails").select("*").order("received_at", desc=True)
+    if category:
+        query = query.eq("category", category)
+    return query.execute().data
+
+
+@app.delete("/emails/{email_id}")
+def delete_email(email_id: str):
+    """Moves the email to Trash in Gmail (recoverable for 30 days) and removes it from the dashboard's view."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+
+    service = get_gmail_service(creds)
+    service.users().messages().trash(userId="me", id=email_id).execute()
+    supabase.table("emails").delete().eq("id", email_id).execute()
+    return {"status": "trashed"}
+
+
+@app.post("/emails/{email_id}/reply")
+def send_reply(email_id: str, payload: dict):
+    """payload = {"body": "reply text"} -- sends immediately once you click Send on the dashboard."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+
+    record = supabase.table("emails").select("*").eq("id", email_id).single().execute().data
+    if not record:
+        return JSONResponse({"error": "email not found"}, status_code=404)
+
+    service = get_gmail_service(creds)
+    _, to_addr = email.utils.parseaddr(record["sender"])
+
+    msg = MIMEText(payload["body"])
+    msg["to"] = to_addr
+    subject = record["subject"] or ""
+    msg["subject"] = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+    if record.get("message_id_header"):
+        msg["In-Reply-To"] = record["message_id_header"]
+        msg["References"] = record["message_id_header"]
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    message_body = {"raw": raw}
+    if record.get("thread_id"):
+        message_body["threadId"] = record["thread_id"]
+
+    sent = service.users().messages().send(userId="me", body=message_body).execute()
+    return {"status": "sent", "id": sent.get("id")}
+
+
+# Re-syncs every 2 hours automatically once the app is running.
+scheduler = BackgroundScheduler()
+scheduler.add_job(sync, "interval", hours=2)
+scheduler.start()
