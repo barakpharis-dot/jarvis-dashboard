@@ -165,6 +165,57 @@ def _create_calendar_event(creds, summary, date, time=None):
     created = service.events().insert(calendarId="primary", body=event).execute()
     return created.get("htmlLink")
 
+def _fetch_calendar_events(creds, days_ahead=30):
+    """Pulls upcoming events straight from Google Calendar, so things added there (not through JARVIS) still show up here."""
+    service = get_calendar_service(creds)
+    now = datetime.utcnow()
+    time_min = now.isoformat() + "Z"
+    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+    events_result = service.events().list(
+        calendarId="primary", timeMin=time_min, timeMax=time_max,
+        singleEvents=True, orderBy="startTime", maxResults=100,
+    ).execute()
+
+    parsed = []
+    for e in events_result.get("items", []):
+        start = e.get("start", {})
+        if "date" in start:
+            due_date, due_time = start["date"], None
+        elif "dateTime" in start:
+            dt = datetime.fromisoformat(start["dateTime"])
+            due_date, due_time = dt.date().isoformat(), dt.strftime("%H:%M")
+        else:
+            continue
+        parsed.append({
+            "id": f"gcal-{e['id']}",
+            "text": e.get("summary", "(no title)"),
+            "due_date": due_date,
+            "due_time": due_time,
+            "source": "calendar",
+            "done": False,
+            "calendar_event_link": e.get("htmlLink"),
+        })
+    return parsed
+
+@app.get("/tasks")
+def list_tasks():
+    db_tasks = supabase.table("tasks").select("*").order("due_date").execute().data
+    creds = load_credentials()
+    if not creds:
+        return db_tasks
+
+    try:
+        cal_events = _fetch_calendar_events(creds)
+    except Exception as e:
+        print(f"Could not fetch calendar events: {e}")
+        return db_tasks
+
+    existing_keys = {(t.get("text"), t.get("due_date")) for t in db_tasks}
+    merged = list(db_tasks)
+    for ev in cal_events:
+        if (ev["text"], ev["due_date"]) not in existing_keys:
+            merged.append(ev)
+    return merged
 
 @app.post("/calendar/event")
 def create_calendar_event(payload: dict):
