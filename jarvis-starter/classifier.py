@@ -1,19 +1,17 @@
 """
-Cheap rules first. Claude only for what's left. This is the core idea:
-don't spend a model call on something a plain string match already solves.
+Cheap rules first (receipts, retail — always skip AI).
+Named contacts get a forced category, but still go through AI for a real summary,
+since a message from a person or platform always has content worth reading.
 """
 import os
 import json
-from anthropic import Anthropic
 from datetime import datetime
+from anthropic import Anthropic
 
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-# Domain-based rules -- always caught as "promotions" (receipts, retail, etc).
 RULE_SENDERS = [s.strip() for s in os.environ.get("KNOWN_RULE_SENDERS", "").split(",") if s.strip()]
 
-# Named-contact rules -- specific people/accounts mapped to a specific category.
-# Format in .env: "Name:category,Name:category,..."
 def _parse_named_contacts() -> dict:
     raw = os.environ.get("NAMED_CONTACTS", "")
     pairs = {}
@@ -25,40 +23,11 @@ def _parse_named_contacts() -> dict:
     return pairs
 
 NAMED_CONTACTS = _parse_named_contacts()
-
 CATEGORIES = "parents|principals|colleagues|school-ops|personal|finance|promotions|other"
 
 
-def rule_classify(email: dict) -> dict | None:
-    """Returns a result dict if a free rule catches this email, else None."""
-    sender = email["sender"].lower()
-
-    # Check named contacts first -- these carry a specific category.
-    for name, category in NAMED_CONTACTS.items():
-        if name in sender:
-            return {
-                "category": category,
-                "summary": None,
-                "action_needed": None,
-                "needs_reply": False,
-                "source": "rule",
-                "confidence": None,
-            }
-
-    # Then check generic domain rules -- always "promotions".
-    if any(domain in sender for domain in RULE_SENDERS):
-        return {
-            "category": "promotions",
-            "summary": None,
-            "action_needed": None,
-            "needs_reply": False,
-            "source": "rule",
-            "confidence": None,
-        }
-
-    return None
 def ai_classify(email: dict) -> dict:
-    """Sends the ambiguous email to Claude for category + summary + action + reply flag."""
+    """Sends the email to Claude for category + summary + action + reply flag."""
     today_str = datetime.now().strftime("%Y-%m-%d (%A)")
     prompt = f"""Classify this email. Respond ONLY with JSON, no other text.
 Today's date is {today_str}, use it to resolve relative dates like "Friday" or "next week".
@@ -81,9 +50,9 @@ Return exactly this shape:
 {{"category": "{CATEGORIES}",
   "summary": "one sentence, what this email is actually about",
   "full_summary": "a fuller 3-4 sentence summary covering all the key details, so the person doesn't have to open the original",
-  "action_needed": "a short, specific next step the person should take (e.g. 'sign and return permission slip by Friday'), or null if nothing is required",
+  "action_needed": "a short, specific next step the person should take, or null if nothing is required",
   "due_date": "YYYY-MM-DD if the action has a specific date/deadline, else null",
-  "due_time": "HH:MM in 24-hour time if a specific time is mentioned (e.g. a meeting at 3pm), else null",
+  "due_time": "HH:MM in 24-hour time if a specific time is mentioned, else null",
   "needs_reply": true or false,
   "confidence": 0.0 to 1.0}}
 """
@@ -98,7 +67,26 @@ Return exactly this shape:
     result["source"] = "ai"
     return result
 
+
 def classify(email: dict) -> dict:
-    return rule_classify(email) or ai_classify(email)
+    sender = email["sender"].lower()
 
+    # Pure noise -- receipts, retail. Always skip AI, always "promotions".
+    if any(domain in sender for domain in RULE_SENDERS):
+        return {
+            "category": "promotions", "summary": None, "full_summary": None,
+            "action_needed": None, "due_date": None, "due_time": None,
+            "needs_reply": False, "source": "rule", "confidence": None,
+        }
 
+    # Named contacts -- still get a real AI summary, category is just locked in.
+    forced_category = None
+    for name, category in NAMED_CONTACTS.items():
+        if name in sender:
+            forced_category = category
+            break
+
+    result = ai_classify(email)
+    if forced_category:
+        result["category"] = forced_category
+    return result
