@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — personal ops deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0E141C;
+    --panel: #151E29;
+    --panel-alt: #1B2735;
+    --border: #2A3A4C;
+    --text: #E7EDF3;
+    --text-dim: #8CA0B3;
+    --teal: #4FD1C5;
+    --teal-dim: #1F4F49;
+    --amber: #E8A33D;
+    --amber-dim: #4F3B1A;
+    --violet: #9B8FE0;
+    --red: #E0685F;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  .topnav{
+    position:sticky;top:0;z-index:50;
+    background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .topnav-inner{
+    max-width:920px;margin:0 auto;padding:0 24px;
+    display:flex;align-items:center;gap:4px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .topnav-inner::-webkit-scrollbar{display:none;}
+  .topnav-brand{
+    font-family:'JetBrains Mono', monospace;font-weight:700;font-size:13px;
+    color:var(--teal);padding:14px 14px 14px 0;flex-shrink:0;
+    text-decoration:none;
+  }
+  .nav-link{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    color:var(--text-dim);text-decoration:none;white-space:nowrap;
+    padding:14px 12px;border-bottom:2px solid transparent;
+    flex-shrink:0;
+  }
+  .nav-link:hover{color:var(--text);}
+  .nav-link.active{color:var(--teal);border-bottom-color:var(--teal);}
+  section{scroll-margin-top:48px;}
+  .hero{scroll-margin-top:48px;}
+  .page{display:none;}
+  .page.active{display:block;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.6;
+  }
+  .mono{font-family:'JetBrains Mono', monospace;}
+  a{color:var(--teal);}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    border-bottom:1px solid var(--border);
+    padding:52px 0 40px;
+    background:
+      linear-gradient(180deg, rgba(79,209,197,0.05), transparent 60%);
+  }
+  .status-line{
+    font-size:12px;
+    color:var(--teal);
+    letter-spacing:0.08em;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .status-row{
+    display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:10px;margin-bottom:6px;
+  }
+  .sync-now-btn{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    background:transparent;color:var(--teal);border:1px solid var(--teal-dim);
+    border-radius:14px;padding:6px 14px;cursor:pointer;
+  }
+  .sync-now-btn:hover:not(:disabled){border-color:var(--teal);}
+  .sync-now-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .sync-note{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--text-dim);
+    margin:0 0 18px;
+  }
+  .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--teal);
+    animation:pulse 1.8s infinite ease-in-out;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(79,209,197,0.5);}
+    50%{opacity:0.5; box-shadow:0 0 0 6px rgba(79,209,197,0);}
+  }
+  h1.title{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:44px;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    color:var(--text-dim);
+    font-size:16px;
+    max-width:560px;
+    margin:0 0 34px;
+  }
+
+  /* pipeline signature element */
+  .pipeline{
+    display:flex;
+    align-items:center;
+    gap:0;
+    overflow-x:auto;
+    padding:18px 20px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+  }
+  .pnode{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:8px 12px;
+    white-space:nowrap;
+    position:relative;
+    flex-shrink:0;
+  }
+  .pnode.active{color:var(--teal); border-color:var(--teal-dim);}
+  .pline{
+    flex:1;
+    min-width:24px;
+    height:1px;
+    background:var(--border);
+    position:relative;
+    margin:0 6px;
+  }
+  .ppulse{
+    position:absolute;
+    top:-2px;
+    left:0;
+    width:5px;height:5px;
+    border-radius:50%;
+    background:var(--teal);
+    animation:travel 3.6s linear infinite;
+  }
+  @keyframes travel{
+    0%{left:0; opacity:0;}
+    5%{opacity:1;}
+    95%{opacity:1;}
+    100%{left:calc(100% - 5px); opacity:0;}
+  }
+
+  .glance-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;
+  }
+  @media (max-width:640px){ .glance-grid{grid-template-columns:1fr;} }
+  .glance-panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:16px 18px;
+  }
+  .glance-header{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+  }
+  .glance-title{
+    font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--text-dim);letter-spacing:0.04em;
+  }
+  .glance-jump{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--teal);
+    text-decoration:none;padding:0;border:none;
+  }
+  .glance-jump:hover{text-decoration:underline;}
+  .glance-body{font-size:13px;color:var(--text-dim);}
+  .glance-item{
+    display:flex;justify-content:space-between;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);
+  }
+  .glance-item:last-child{border-bottom:none;}
+  .glance-item-meta{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--amber);flex-shrink:0;white-space:nowrap;
+  }
+  .glance-empty{color:var(--text-dim);font-size:13px;padding:6px 0;}
+  .glance-title-group{display:flex;align-items:center;gap:8px;}
+  .due-badge{
+    font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--red);
+    background:rgba(224,104,95,0.12);border:1px solid var(--red);
+    border-radius:10px;padding:2px 8px;
+  }
+  .glance-item-meta.overdue{color:var(--red);}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:44px 0;border-bottom:1px solid var(--border);}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:0.08em;
+    margin:0 0 6px;
+  }
+  h2.sec-title{
+    font-size:22px;
+    font-weight:600;
+    margin:0 0 6px;
+  }
+  .sec-desc{color:var(--text-dim); font-size:14px; max-width:600px; margin:0 0 24px;}
+
+  .legend{
+    display:flex;gap:16px;font-size:12px;color:var(--text-dim);margin-bottom:18px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .swatch{width:9px;height:9px;border-radius:2px;}
+
+  /* tabs */
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:16px;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    cursor:pointer;
+    background:transparent;
+  }
+  .tab.on{background:var(--teal-dim); color:var(--teal); border-color:var(--teal);}
+
+  /* email card */
+  .bulk-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:14px;padding:10px 14px;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  }
+  .bulk-select-all{
+    display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);cursor:pointer;
+  }
+  .bulk-select-all input{accent-color:var(--teal);cursor:pointer;}
+  .btn-delete-bulk{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    background:transparent;color:var(--red);border:1px solid var(--red);
+    border-radius:6px;padding:7px 14px;cursor:pointer;
+  }
+  .btn-delete-bulk:hover:not(:disabled){background:var(--red);color:var(--bg);}
+  .btn-delete-bulk:disabled{opacity:0.35;cursor:not-allowed;}
+  .card-select{
+    display:inline-flex;float:right;margin-left:10px;cursor:pointer;
+  }
+  .card-select input{accent-color:var(--teal);cursor:pointer;width:15px;height:15px;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:none;
+    cursor:pointer;
+  }
+  .card.show{display:block;}
+  .card-expanded{
+    display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
+  }
+  .card-expanded.show{display:block;}
+  .expand-tabs{display:flex;gap:6px;margin-bottom:10px;}
+  .expand-tab{
+    font-family:'JetBrains Mono', monospace;font-size:11px;
+    padding:4px 11px;border-radius:12px;border:1px solid var(--border);
+    color:var(--text-dim);cursor:pointer;background:transparent;
+  }
+  .expand-tab.on{background:var(--teal-dim);color:var(--teal);border-color:var(--teal);}
+  .expand-body{
+    font-size:12.5px;color:var(--text-dim);white-space:pre-wrap;
+    max-height:240px;overflow-y:auto;padding-right:6px;line-height:1.55;
+  }
+
+  .card-actions{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .reply-box{
+    width:100%;min-height:70px;resize:vertical;
+    background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;color:var(--text);font-family:'IBM Plex Sans', sans-serif;font-size:13px;
+    box-sizing:border-box;
+  }
+  .reply-box:focus{outline:none;border-color:var(--teal);}
+  .reply-box:disabled{opacity:0.5;cursor:not-allowed;}
+  .card-actions-row{display:flex;gap:8px;margin-top:8px;}
+  .btn-reply, .btn-delete{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    border-radius:6px;padding:7px 14px;cursor:pointer;border:1px solid var(--border);
+  }
+  .btn-reply{background:var(--teal-dim);color:var(--teal);border-color:var(--teal);}
+  .btn-reply:hover{background:var(--teal);color:var(--bg);}
+  .btn-delete{background:transparent;color:var(--red);border-color:var(--red);}
+  .btn-delete:hover{background:var(--red);color:var(--bg);}
+  .btn-reply:disabled, .btn-delete:disabled{opacity:0.4;cursor:not-allowed;}
+  .card-action-status{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--text-dim);margin-top:8px;
+  }
+  .card-action-status.status-ok{color:var(--teal);}
+  .card-action-status.status-error{color:var(--red);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .card-from{font-weight:500;font-size:14px;}
+  .card-subj{color:var(--text-dim);font-size:13px;margin-top:2px;}
+  .tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    padding:3px 7px;
+    border-radius:4px;
+    flex-shrink:0;
+    letter-spacing:0.04em;
+  }
+  .tag.rule{background:var(--amber-dim); color:var(--amber);}
+  .tag.ai{background:var(--teal-dim); color:var(--teal);}
+  .tag.calendar{background:rgba(155,143,224,0.15); color:var(--violet);}
+  .conf{
+    margin-top:10px;
+    height:4px;
+    background:var(--panel-alt);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .conf-fill{height:100%; background:var(--teal);}
+  .reply{
+    display:inline-block;margin-top:8px;font-size:11px;
+    font-family:'JetBrains Mono', monospace;
+    color:var(--red);
+  }
+  .card-summary{
+    font-size:12.5px;color:var(--text-dim);
+    margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+  }
+  .card-summary b{
+    font-family:'JetBrains Mono', monospace;font-size:10px;
+    color:var(--teal);letter-spacing:0.04em;margin-right:6px;
+  }
+
+  /* cost ledger */
+  .ledger-row{
+    display:flex;justify-content:space-between;
+    padding:10px 0;border-bottom:1px solid var(--border);
+    font-size:14px;
+  }
+  .ledger-row:last-child{border-bottom:none;}
+  .ledger-name{color:var(--text);}
+  .ledger-val{font-family:'JetBrains Mono', monospace;color:var(--text-dim);}
+  .ledger-val.free{color:var(--teal);}
+  .ledger-total{
+    display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;
+    border-top:1px solid var(--border);font-weight:600;font-size:15px;
+  }
+
+  /* stack */
+  .stack-grid{
+    display:grid;grid-template-columns:repeat(auto-fit, minmax(180px,1fr));gap:12px;
+  }
+  .stack-item{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;
+  }
+  .stack-role{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--text-dim);margin-bottom:4px;}
+  .stack-name{font-weight:500;font-size:14px;}
+
+  .rule-note{
+    margin-top:20px;padding:14px 16px;border-left:2px solid var(--amber);
+    border-radius:0 8px 8px 0;background:var(--panel);font-size:13px;color:var(--text-dim);
+  }
+  .rule-note b{color:var(--amber);}
+
+  /* week strip */
+  .week-strip{display:flex;gap:8px;margin-bottom:18px;}
+  .day-box{
+    flex:1;text-align:center;background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;padding:10px 4px;
+  }
+  .day-box.today{border-color:var(--teal);}
+  .day-box{cursor:pointer;transition:border-color 0.15s, background 0.15s;}
+  .day-box:hover{border-color:var(--text-dim);}
+  .day-box.selected{background:var(--teal-dim);border-color:var(--teal);}
+  .task-counter a{color:var(--teal);text-decoration:none;}
+  .task-counter a:hover{text-decoration:underline;}
+  .task-filter-empty{color:var(--text-dim);font-size:13px;padding:12px 0;}
+  .day-name{font-family:'JetBrains Mono', monospace;font-size:10px;color:var(--text-dim);}
+  .day-num{font-size:15px;font-weight:500;margin:5px 0;}
+  .day-dot{width:5px;height:5px;border-radius:50%;background:var(--amber);margin:0 auto;visibility:hidden;}
+  .day-dot.show{visibility:visible;}
+  .day-dot.ai{background:var(--teal);}
+
+  /* tasks */
+  .task-counter{
+    font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--text-dim);
+    margin-bottom:14px;
+  }
+  .task-counter b{color:var(--teal);}
+  .task{
+    display:flex;align-items:center;gap:12px;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:12px 16px;margin-bottom:8px;
+  }
+  .task input[type="checkbox"]{
+    width:16px;height:16px;flex-shrink:0;accent-color:var(--teal);cursor:pointer;
+  }
+  .task-text{flex:1;font-size:14px;}
+  .task.done .task-text{text-decoration:line-through;color:var(--text-dim);}
+  .task-due{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--amber);
+    white-space:nowrap;
+  }
+  .cal-link{
+    display:flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:6px;
+    border:1px solid var(--border);color:var(--text-dim);
+    flex-shrink:0;text-decoration:none;font-size:14px;
+    background:transparent;cursor:pointer;padding:0;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .cal-link:hover{border-color:var(--teal);color:var(--teal);}
+  .cal-link:disabled{cursor:default;}
+  .cal-link.cal-loading{opacity:0.5;}
+  .cal-link.cal-added{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:pointer;}
+  .cal-link.cal-error{border-color:var(--red);color:var(--red);}
+  .task-dismiss{
+    background:transparent;border:none;color:var(--text-dim);
+    cursor:pointer;font-size:13px;padding:4px 6px;flex-shrink:0;line-height:1;
+  }
+  .task-dismiss:hover{color:var(--red);}
+
+  .add-task-toggle{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:transparent;color:var(--teal);border:1px dashed var(--teal-dim);
+    border-radius:8px;padding:9px 16px;cursor:pointer;margin-bottom:14px;width:100%;text-align:left;
+  }
+  .add-task-toggle:hover{border-style:solid;}
+  .add-task-form{display:none;}
+  .add-task-form.open{
+    display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;
+  }
+  .add-task-cancel{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:transparent;color:var(--text-dim);border:1px solid var(--border);
+    border-radius:8px;padding:9px 14px;cursor:pointer;
+  }
+  .add-task-cancel:hover{color:var(--text);border-color:var(--text-dim);}
+  .add-task-form input[type="text"]{
+    flex:1;min-width:180px;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:9px 12px;color:var(--text);font-family:'IBM Plex Sans', sans-serif;font-size:13px;
+  }
+  .add-task-form input[type="date"], .add-task-form input[type="time"]{
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:9px 10px;color:var(--text-dim);font-family:'JetBrains Mono', monospace;font-size:12px;
+  }
+  .add-task-form input:focus{outline:none;border-color:var(--teal);}
+  .add-task-form button{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:var(--teal-dim);color:var(--teal);border:1px solid var(--teal);
+    border-radius:8px;padding:9px 16px;cursor:pointer;
+  }
+  .add-task-form button:hover{background:var(--teal);color:var(--bg);}
+  .sec-header-row{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .gcal-open{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    color:var(--teal);text-decoration:none;white-space:nowrap;
+    border:1px solid var(--teal-dim);border-radius:16px;padding:5px 12px;
+  }
+  .gcal-open:hover{border-color:var(--teal);}
+
+  footer{padding:44px 0 60px;}
+  .cta-box{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:22px 24px;
+  }
+  .cta-box p{margin:0 0 12px;color:var(--text-dim);font-size:14px;}
+  .prompt-box{
+    font-family:'JetBrains Mono', monospace;
+    background:var(--panel-alt);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12.5px;color:var(--teal);
+    white-space:pre-wrap;
+  }
+
+  @media (max-width:560px){
+    h1.title{font-size:32px;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="topnav-brand" href="#top">JARVIS</a>
+    <a class="nav-link" href="#top">overview</a>
+    <a class="nav-link" href="#inbox">inbox</a>
+    <a class="nav-link" href="#parentsquare">parent square</a>
+    <a class="nav-link" href="#needsreply">needs reply</a>
+    <a class="nav-link" href="#tasks">tasks</a>
+    <a class="nav-link" href="#costs">costs</a>
+    <a class="nav-link" href="#recipe">recipe</a>
+  </div>
+</nav>
+
+<div class="hero page" id="top">
+  <div class="wrap">
+    <div class="status-row">
+      <div class="status-line" id="statusLine"><span class="dot"></span>DEMO DATA · NOT CONNECTED TO A LIVE INBOX</div>
+      <button type="button" id="syncNowBtn" class="sync-now-btn">Sync now</button>
+    </div>
+    <p class="sync-note" id="syncNote"></p>
+    <h1 class="title">JARVIS</h1>
+    <p class="subtitle">A personal ops dashboard: it reads your inbox, sorts what matters, and turns commitments buried in email into tasks with due dates — cheap rules for the obvious stuff, an AI model for anything ambiguous.</p>
+    <div class="pipeline mono">
+      <div class="pnode active">Gmail</div>
+      <div class="pline"><div class="ppulse"></div></div>
+      <div class="pnode">Rules</div>
+      <div class="pline"><div class="ppulse" style="animation-delay:0.6s;"></div></div>
+      <div class="pnode">Claude</div>
+      <div class="pline"><div class="ppulse" style="animation-delay:1.2s;"></div></div>
+      <div class="pnode">Supabase</div>
+      <div class="pline"><div class="ppulse" style="animation-delay:1.8s;"></div></div>
+      <div class="pnode">Dashboard</div>
+    </div>
+
+    <div class="glance-grid">
+      <div class="glance-panel">
+        <div class="glance-header">
+          <span class="glance-title">Needs a reply</span>
+          <a href="#needsreply" class="nav-link glance-jump">view all</a>
+        </div>
+        <div id="glanceReply" class="glance-body">Loading…</div>
+      </div>
+      <div class="glance-panel">
+        <div class="glance-header">
+          <span class="glance-title-group">
+            <span class="glance-title">Due this week</span>
+            <span id="dueBadge" class="due-badge" style="display:none;"></span>
+          </span>
+          <a href="#tasks" class="nav-link glance-jump">view all</a>
+        </div>
+        <div id="glanceDue" class="glance-body">Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="inbox" class="page">
+  <div class="wrap">
+    <p class="eyebrow">FEATURE 01</p>
+    <h2 class="sec-title">Inbox, sorted</h2>
+    <p class="sec-desc">Every message gets a label. Receipts and newsletters are caught for free by rules — for anything ambiguous, Claude also writes a one-line TL;DR, so you know what's inside before you open it.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--amber);"></span>RULE — free, instant</span>
+      <span><span class="swatch" style="background:var(--teal);"></span>AI — judgment call</span>
+    </div>
+    <div class="tabs mono">
+      <button class="tab on" data-tab="all">all</button>
+      <button class="tab" data-tab="parents">parents</button>
+      <button class="tab" data-tab="principals">principals</button>
+      <button class="tab" data-tab="colleagues">colleagues</button>
+      <button class="tab" data-tab="school-ops">school-ops</button>
+      <button class="tab" data-tab="personal">personal</button>
+      <button class="tab" data-tab="finance">finance</button>
+      <button class="tab" data-tab="promotions">promotions</button>
+      <button class="tab" data-tab="other">other</button>
+    </div>
+
+    <div class="bulk-bar">
+      <label class="bulk-select-all"><input type="checkbox" id="selectAllEmails"> select all</label>
+      <button type="button" id="deleteSelectedBtn" class="btn-delete-bulk" disabled>Delete selected (<span id="selectedCount">0</span>)</button>
+    </div>
+
+    <div id="emailCards">
+    <div class="card show" data-cat="finance" data-body="Your November statement is now available. Balance: $1,204.18. Minimum payment due Nov 28. Log in to view full details.">
+      <div class="card-top">
+        <div><div class="card-from">Chase Bank</div><div class="card-subj">Your statement is ready</div></div>
+        <span class="tag rule">RULE</span>
+      </div>
+    </div>
+    <div class="card show" data-cat="networking"
+      data-body="Hey! Quick one - can we push our Thursday call to Friday afternoon instead? Something came up on my end. Also, did you get a chance to look at the deck I sent over last week? No rush, just want to make sure it didn't land in spam. Let me know what works for Friday, anytime after 1pm is good on my side."
+      data-fullsummary="Priya is asking to reschedule your Thursday call to Friday afternoon due to a conflict on her end, and is checking whether you've had a chance to review the deck she sent last week. She's flexible on timing Friday, suggesting anytime after 1pm.">
+      <div class="card-top">
+        <div><div class="card-from">Priya Nair</div><div class="card-subj">Following up on Thursday's call</div></div>
+        <span class="tag ai">AI · 94%</span>
+      </div>
+      <div class="conf"><div class="conf-fill" style="width:94%;"></div></div>
+      <div class="card-summary"><b>TL;DR</b>Wants to move Thursday's call to Friday afternoon and asks if you had a chance to look at her deck.</div>
+      <div class="reply">● needs a reply</div>
+    </div>
+    <div class="card show" data-cat="promotions" data-body="Your Tuesday trip with Uber - $14.32. Trip from Downtown to Home. Thanks for riding!">
+      <div class="card-top">
+        <div><div class="card-from">Uber Receipts</div><div class="card-subj">Your Tuesday trip total</div></div>
+        <span class="tag rule">RULE</span>
+      </div>
+    </div>
+    <div class="card show" data-cat="family"
+      data-body="Hi honey, just confirming dinner Sunday at 6! Should I make my green bean casserole or do you want to bring dessert this time? Let me know so I can plan the shopping. Love you!"
+      data-fullsummary="Mom is confirming Sunday dinner at 6pm and asking whether she should make her usual green bean casserole or if you'll bring dessert instead, so she can plan her grocery shopping accordingly.">
+      <div class="card-top">
+        <div><div class="card-from">Mom</div><div class="card-subj">Are you coming Sunday?</div></div>
+        <span class="tag ai">AI · 88%</span>
+      </div>
+      <div class="conf"><div class="conf-fill" style="width:88%;"></div></div>
+      <div class="card-summary"><b>TL;DR</b>Confirming dinner at 6 on Sunday and asking if you're bringing dessert or she should.</div>
+      <div class="reply">● needs a reply</div>
+    </div>
+    <div class="card show" data-cat="finance"
+      data-body="Your Q3 statement is attached. Please also note that starting next quarter, your employer's 401k match rate will change from 4% to 3.5% per the updated plan documents. No action is required on your part at this time, but we wanted to give you advance notice."
+      data-fullsummary="Your Q3 statement is attached, and Fidelity is giving advance notice that your employer's 401k match rate is decreasing from 4% to 3.5% starting next quarter. No action is required right now, this is informational only.">
+      <div class="card-top">
+        <div><div class="card-from">Fidelity</div><div class="card-subj">Q3 statement + a note about your 401k</div></div>
+        <span class="tag ai">AI · 71%</span>
+      </div>
+      <div class="conf"><div class="conf-fill" style="width:71%;"></div></div>
+      <div class="card-summary"><b>TL;DR</b>Statement attached, plus a heads-up that your employer match rate is changing starting next quarter.</div>
+    </div>
+    <div class="card show" data-cat="promotions">
+      <div class="card-top">
+        <div><div class="card-from">REI</div><div class="card-subj">30% off ends tonight</div></div>
+        <span class="tag rule">RULE</span>
+      </div>
+    </div>
+    </div>
+
+    <div class="rule-note">A person's message is <b>never hidden</b>, even when the model isn't sure — uncertainty routes to review, not to the archive.</div>
+  </div>
+</section>
+
+<section id="parentsquare" class="page">
+  <div class="wrap">
+    <p class="eyebrow">PARENT SQUARE</p>
+    <h2 class="sec-title">Parent Square messages</h2>
+    <p class="sec-desc">Just the messages that came through Parent Square — reply or delete right here, same as the inbox.</p>
+    <div id="psStatus" class="sec-desc" style="margin-top:-8px;">Loading…</div>
+
+    <div class="bulk-bar">
+      <label class="bulk-select-all"><input type="checkbox" id="selectAllPs"> select all</label>
+      <button type="button" id="deleteSelectedPsBtn" class="btn-delete-bulk" disabled>Delete selected (<span id="selectedPsCount">0</span>)</button>
+    </div>
+
+    <div id="psCards"></div>
+  </div>
+</section>
+
+<section id="needsreply" class="page">
+  <div class="wrap">
+    <p class="eyebrow">CROSS-CATEGORY</p>
+    <h2 class="sec-title">Needs a reply</h2>
+    <p class="sec-desc">Every email flagged as needing a reply, pulled from every category into one list — reply or delete right here.</p>
+    <div id="nrStatus" class="sec-desc" style="margin-top:-8px;">Loading…</div>
+
+    <div class="bulk-bar">
+      <label class="bulk-select-all"><input type="checkbox" id="selectAllNr"> select all</label>
+      <button type="button" id="deleteSelectedNrBtn" class="btn-delete-bulk" disabled>Delete selected (<span id="selectedNrCount">0</span>)</button>
+    </div>
+
+    <div id="nrCards"></div>
+  </div>
+</section>
+
+<section id="tasks" class="page">
+  <div class="wrap">
+    <p class="eyebrow">FEATURE 02</p>
+    <div class="sec-header-row">
+      <h2 class="sec-title">Tasks &amp; calendar</h2>
+      <a class="gcal-open" href="https://calendar.google.com/calendar/r" target="_blank" rel="noopener">Open Google Calendar ↗</a>
+    </div>
+    <p class="sec-desc">When a thread implies a commitment — "let's meet Friday," "send it over by Wednesday" — Claude lifts it out into a task with a due date, instead of leaving it buried in your inbox. Manual to-dos live in the same list.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--amber);"></span>manual — you added it</span>
+      <span><span class="swatch" style="background:var(--teal);"></span>lifted from an email</span>
+    </div>
+
+    <button type="button" class="add-task-toggle" id="addTaskToggle">+ Add a task</button>
+    <form class="add-task-form" id="addTaskForm">
+      <input type="text" id="newTaskText" placeholder="Add your own task…" required>
+      <input type="date" id="newTaskDate">
+      <input type="time" id="newTaskTime">
+      <button type="submit">Add</button>
+      <button type="button" class="add-task-cancel" id="addTaskCancel">Cancel</button>
+    </form>
+
+    <div class="week-strip" id="weekStrip"></div>
+
+    <p class="task-counter" id="taskCounter"></p>
+    <div id="taskList"></div>
+  </div>
+</section>
+
+<section id="costs" class="page">
+  <div class="wrap">
+    <p class="eyebrow">RUNNING COSTS</p>
+    <h2 class="sec-title">What it costs, monthly</h2>
+    <div class="ledger-row"><span class="ledger-name">Gmail API</span><span class="ledger-val free">free</span></div>
+    <div class="ledger-row"><span class="ledger-name">Google Calendar API</span><span class="ledger-val free">free</span></div>
+    <div class="ledger-row"><span class="ledger-name">Database (Supabase)</span><span class="ledger-val free">free tier</span></div>
+    <div class="ledger-row"><span class="ledger-name">Hosting (Railway)</span><span class="ledger-val">~$5/mo</span></div>
+    <div class="ledger-row"><span class="ledger-name">AI (Anthropic, pay-as-you-go)</span><span class="ledger-val">$2–8/mo</span></div>
+    <div class="ledger-total"><span>Estimated total</span><span class="mono">$5–15/mo</span></div>
+    <p class="sec-desc" style="margin-top:14px;">Check <a href="https://anthropic.com/pricing" target="_blank">anthropic.com/pricing</a> for current rates — the cheap, fast model handles the bulk of the classification.</p>
+  </div>
+</section>
+
+<section id="recipe" class="page" style="border-bottom:none;">
+  <div class="wrap">
+    <p class="eyebrow">THE RECIPE</p>
+    <h2 class="sec-title">What it's built from</h2>
+    <div class="stack-grid">
+      <div class="stack-item"><div class="stack-role">interface</div><div class="stack-name">React</div></div>
+      <div class="stack-item"><div class="stack-role">logic</div><div class="stack-name">Python + FastAPI</div></div>
+      <div class="stack-item"><div class="stack-role">storage</div><div class="stack-name">Supabase</div></div>
+      <div class="stack-item"><div class="stack-role">judgment</div><div class="stack-name">Anthropic API</div></div>
+      <div class="stack-item"><div class="stack-role">hosting</div><div class="stack-name">Railway</div></div>
+      <div class="stack-item"><div class="stack-role">connection</div><div class="stack-name">Gmail (read-only)</div></div>
+      <div class="stack-item"><div class="stack-role">scheduling</div><div class="stack-name">Google Calendar API</div></div>
+    </div>
+
+    <div class="cta-box" style="margin-top:24px;">
+      <p>This is a working mockup with sample data — connecting it to a real inbox means setting up Gmail OAuth and a small hosted backend. Claude Code can build that part with you, one piece at a time. Try opening a new chat and pasting something like:</p>
+      <div class="prompt-box">Help me build a personal dashboard like this: it reads my Gmail, sorts emails into categories using cheap rules first and Claude for anything ambiguous, and shows the result on a simple site. Walk me through what to set up first.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const API_BASE = 'https://jarvis-dashboard-production-198b.up.railway.app';
+  // ---- tasks & calendar ----
+  const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const today = new Date();
+
+  function fmtISO(d) { return d.toISOString().slice(0, 10); }
+  function offsetDate(n) { const d = new Date(today); d.setDate(today.getDate() + n); return fmtISO(d); }
+
+  // sample data, shown until (or unless) the real backend is reachable
+  let tasks = [
+    { id: 'demo1', text: "Reply to Priya re: Thursday's call", due_date: offsetDate(0), due_time: null, source: "ai", done: false },
+    { id: 'demo2', text: "Send Fidelity the signed rollover form", due_date: offsetDate(1), due_time: null, source: "ai", done: false },
+    { id: 'demo3', text: "Pack for Chicago trip", due_date: offsetDate(4), due_time: null, source: "manual", done: false },
+    { id: 'demo4', text: "Print field trip permission slips", due_date: offsetDate(3), due_time: "15:30", source: "manual", done: false },
+    { id: 'demo5', text: "Call Mom back about Sunday", due_date: offsetDate(0), due_time: null, source: "ai", done: true },
+  ];
+
+  const weekStrip = document.getElementById('weekStrip');
+  let selectedDayFilter = null; // null = show all tasks; otherwise an ISO date string
+
+  function dueLabel(dueDateStr) {
+    if (!dueDateStr) return 'no due date';
+    const diff = Math.round((new Date(dueDateStr) - new Date(fmtISO(today))) / 86400000);
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'tomorrow';
+    if (diff > 1 && diff <= 6) return `in ${diff} days`;
+    if (diff < 0) return `${Math.abs(diff)}d overdue`;
+    return dueDateStr;
+  }
+
+  function renderWeekStrip() {
+    weekStrip.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const iso = offsetDate(i);
+      const d = new Date(today); d.setDate(today.getDate() + i);
+      const hasTask = tasks.some(t => !t.done && t.due_date === iso);
+      const isAi = tasks.some(t => !t.done && t.due_date === iso && t.source === 'ai');
+      const box = document.createElement('div');
+      box.className = 'day-box'
+        + (i === 0 ? ' today' : '')
+        + (selectedDayFilter === iso ? ' selected' : '');
+      box.innerHTML = `
+        <div class="day-name">${dayNames[d.getDay()]}</div>
+        <div class="day-num">${d.getDate()}</div>
+        <div class="day-dot ${hasTask ? 'show' : ''} ${isAi ? 'ai' : ''}"></div>
+      `;
+      box.addEventListener('click', () => {
+        selectedDayFilter = (selectedDayFilter === iso) ? null : iso;
+        renderTasks();
+      });
+      weekStrip.appendChild(box);
+    }
+  }
+
+  const taskList = document.getElementById('taskList');
+  const counterEl = document.getElementById('taskCounter');
+
+  async function addToRealCalendar(text, dateStr, timeStr, btn) {
+    if (!dateStr) {
+      btn.title = 'No due date set for this task yet';
+      btn.classList.add('cal-error');
+      setTimeout(() => btn.classList.remove('cal-error'), 1500);
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('cal-loading');
+    try {
+      const body = { summary: text, date: dateStr };
+      if (timeStr) body.time = timeStr;
+      const res = await fetch(API_BASE + '/calendar/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('request failed');
+      const data = await res.json();
+      btn.classList.remove('cal-loading');
+      btn.classList.add('cal-added');
+      btn.title = 'Added to Google Calendar';
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      if (data.link) btn.onclick = () => window.open(data.link, '_blank');
+    } catch (err) {
+      btn.disabled = false;
+      btn.classList.remove('cal-loading');
+      btn.title = 'Could not reach your local server — is it running?';
+      btn.classList.add('cal-error');
+      setTimeout(() => btn.classList.remove('cal-error'), 1500);
+    }
+  }
+
+  async function toggleTaskDone(task, done) {
+    task.done = done;
+    renderTasks();
+    loadGlance();
+    if (String(task.id).startsWith('demo') || String(task.id).startsWith('gcal-')) return; // sample or calendar-only, nothing to save
+    try {
+      await fetch(`${API_BASE}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done }),
+      });
+    } catch (err) {
+      // local server not running -- checkbox state just won't persist, no error shown
+    }
+  }
+
+  async function deleteTask(taskId, row) {
+    row.style.opacity = '0';
+    setTimeout(() => row.remove(), 150);
+    tasks = tasks.filter(t => t.id !== taskId);
+    loadGlance();
+    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-') || String(taskId).startsWith('gcal-')) return;
+    try {
+      await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
+    } catch (err) {
+      // local server not running -- task stays removed locally for this session
+    }
+  }
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+    const visibleTasks = selectedDayFilter ? tasks.filter(t => t.due_date === selectedDayFilter) : tasks;
+
+    if (selectedDayFilter && visibleTasks.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'task-filter-empty';
+      empty.textContent = 'Nothing due this day.';
+      taskList.appendChild(empty);
+    }
+
+    visibleTasks.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'task' + (t.done ? ' done' : '');
+      const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
+      const synced = !!t.calendar_event_link;
+      row.innerHTML = `
+        <input type="checkbox" ${t.done ? 'checked' : ''}>
+        <span class="task-text">${t.text}</span>
+        <span class="tag ${t.source === 'ai' ? 'ai' : t.source === 'calendar' ? 'calendar' : 'rule'}">${t.source === 'ai' ? 'AI' : t.source === 'calendar' ? 'CALENDAR' : 'MANUAL'}</span>
+        <span class="task-due">${dueLabel(t.due_date)}${timeLabel}</span>
+        <button class="cal-link ${synced ? 'cal-added' : ''}" type="button" title="${synced ? 'Already on Google Calendar' : 'Add to Google Calendar'}" aria-label="Add to Google Calendar">
+          ${synced
+            ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+            : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`}
+        </button>
+        <button class="task-dismiss" type="button" title="Remove task" aria-label="Remove task">✕</button>
+      `;
+      row.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleTaskDone(t, e.target.checked));
+      const btn = row.querySelector('.cal-link');
+      if (synced) {
+        btn.addEventListener('click', () => window.open(t.calendar_event_link, '_blank'));
+      } else {
+        btn.addEventListener('click', () => addToRealCalendar(t.text, t.due_date, t.due_time, btn));
+      }
+      row.querySelector('.task-dismiss').addEventListener('click', () => deleteTask(t.id, row));
+      taskList.appendChild(row);
+    });
+
+    const open = tasks.filter(t => !t.done).length;
+    if (selectedDayFilter) {
+      const d = new Date(selectedDayFilter + 'T00:00:00');
+      const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+      counterEl.innerHTML = `Showing <b>${label}</b> · <a href="#" id="clearDayFilter">show all</a>`;
+      const clearLink = document.getElementById('clearDayFilter');
+      clearLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectedDayFilter = null;
+        renderTasks();
+      });
+    } else {
+      counterEl.innerHTML = `<b>${open}</b> of ${tasks.length} open`;
+    }
+    renderWeekStrip();
+  }
+  renderTasks();
+
+  // ---- add your own task ----
+  const addTaskForm = document.getElementById('addTaskForm');
+  if (addTaskForm) {
+    addTaskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const textInput = document.getElementById('newTaskText');
+      const dateInput = document.getElementById('newTaskDate');
+      const timeInput = document.getElementById('newTaskTime');
+      const text = textInput.value.trim();
+      if (!text) return;
+      const due_date = dateInput.value || null;
+      const due_time = timeInput.value || null;
+
+      const localTask = { id: 'local-' + Date.now(), text, due_date, due_time, source: 'manual', done: false };
+      tasks.push(localTask);
+      renderTasks();
+      textInput.value = ''; dateInput.value = ''; timeInput.value = '';
+      addTaskForm.classList.remove('open');
+      addTaskToggle.style.display = '';
+
+      try {
+        const res = await fetch(API_BASE + '/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, due_date, due_time }),
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          localTask.id = saved.id; // swap in the real id so checkbox/calendar sync works
+          localTask.calendar_event_link = saved.calendar_event_link || null;
+          renderTasks();
+        }
+      } catch (err) {
+        // local server not running -- task stays local-only for this session
+      }
+    });
+  }
+
+  const addTaskToggle = document.getElementById('addTaskToggle');
+  const addTaskCancel = document.getElementById('addTaskCancel');
+  if (addTaskToggle) {
+    addTaskToggle.addEventListener('click', () => {
+      addTaskForm.classList.add('open');
+      addTaskToggle.style.display = 'none';
+      document.getElementById('newTaskText').focus();
+    });
+  }
+  if (addTaskCancel) {
+    addTaskCancel.addEventListener('click', () => {
+      addTaskForm.classList.remove('open');
+      addTaskToggle.style.display = '';
+    });
+  }
+
+  // ---- try to load real tasks from the local backend ----
+  async function loadLiveTasks() {
+    try {
+      const res = await fetch(API_BASE + '/tasks');
+      if (!res.ok) throw new Error('not reachable');
+      const liveTasks = await res.json();
+      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+        tasks = liveTasks.map(t => ({
+          id: t.id, text: t.text, due_date: t.due_date, due_time: t.due_time,
+          source: t.source, done: t.done, calendar_event_link: t.calendar_event_link || null,
+        }));
+        renderTasks();
+      }
+    } catch (err) {
+      // local server not running — sample tasks stay as-is
+    }
+  }
+  loadLiveTasks();
+
+  // ---- top nav page switching ----
+  const navLinks = document.querySelectorAll('.nav-link, .topnav-brand');
+  const pages = document.querySelectorAll('.page');
+
+  function showPage(id) {
+    pages.forEach(p => p.classList.toggle('active', p.id === id));
+    navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+    window.scrollTo(0, 0);
+  }
+
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      showPage(link.getAttribute('href').slice(1));
+    });
+  });
+
+  showPage('top');
+
+  // ---- click-to-expand: full email vs full summary ----
+  function toggleCardExpand(card) {
+    let expanded = card.querySelector('.card-expanded');
+    if (!expanded) {
+      const body = card.dataset.body || '(full email text not available yet)';
+      const fullSummary = card.dataset.fullsummary || '';
+      const emailId = card.dataset.id || '';
+      const isLive = !!emailId;
+      expanded = document.createElement('div');
+      expanded.className = 'card-expanded';
+      expanded.innerHTML = `
+        <div class="expand-tabs">
+          ${fullSummary ? `<button class="expand-tab on" data-view="summary">full summary</button>` : ''}
+          <button class="expand-tab ${fullSummary ? '' : 'on'}" data-view="body">full email</button>
+        </div>
+        <div class="expand-body" data-view-content="summary" style="${fullSummary ? '' : 'display:none;'}">${fullSummary}</div>
+        <div class="expand-body" data-view-content="body" style="${fullSummary ? 'display:none;' : ''}">${body}</div>
+        <div class="card-actions">
+          <textarea class="reply-box" placeholder="${isLive ? 'Write a reply…' : 'Reply only works on real synced emails, not this sample'}" ${isLive ? '' : 'disabled'}></textarea>
+          <div class="card-actions-row">
+            <button type="button" class="btn-reply" ${isLive ? '' : 'disabled'}>Send reply</button>
+            <button type="button" class="btn-delete" ${isLive ? '' : 'disabled'}>Delete email</button>
+          </div>
+          <div class="card-action-status"></div>
+        </div>
+      `;
+      expanded.addEventListener('click', e => e.stopPropagation());
+      expanded.querySelectorAll('.expand-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          expanded.querySelectorAll('.expand-tab').forEach(t => t.classList.remove('on'));
+          tab.classList.add('on');
+          const view = tab.dataset.view;
+          expanded.querySelectorAll('.expand-body').forEach(b => {
+            b.style.display = (b.dataset.viewContent === view) ? 'block' : 'none';
+          });
+        });
+      });
+
+      const statusEl = expanded.querySelector('.card-action-status');
+
+      const replyBtn = expanded.querySelector('.btn-reply');
+      if (isLive) {
+        replyBtn.addEventListener('click', async () => {
+          const text = expanded.querySelector('.reply-box').value.trim();
+          if (!text) return;
+          replyBtn.disabled = true;
+          statusEl.textContent = 'Sending…';
+          try {
+            const res = await fetch(`${API_BASE}/emails/${emailId}/reply`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ body: text }),
+            });
+            if (!res.ok) throw new Error('failed');
+            statusEl.textContent = '✓ Reply sent';
+            statusEl.classList.add('status-ok');
+          } catch (err) {
+            statusEl.textContent = 'Could not send — check that the live server is running';
+            statusEl.classList.add('status-error');
+            replyBtn.disabled = false;
+          }
+        });
+      }
+
+      const deleteBtn = expanded.querySelector('.btn-delete');
+      if (isLive) {
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm('Move this email to Trash? You can still recover it from Gmail for 30 days.')) return;
+          deleteBtn.disabled = true;
+          statusEl.textContent = 'Deleting…';
+          try {
+            const res = await fetch(`${API_BASE}/emails/${emailId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('failed');
+            card.style.opacity = '0';
+            setTimeout(() => card.remove(), 200);
+          } catch (err) {
+            statusEl.textContent = 'Could not delete — check that the live server is running';
+            statusEl.classList.add('status-error');
+            deleteBtn.disabled = false;
+          }
+        });
+      }
+
+      card.appendChild(expanded);
+    }
+    expanded.classList.toggle('show');
+  }
+
+  function wireCardExpansion(container) {
+    container.querySelectorAll('.card').forEach(card => {
+      if (card.dataset.wired) return;
+      card.dataset.wired = 'true';
+
+      // select checkbox, injected into every card (mock or live)
+      const selectWrap = document.createElement('label');
+      selectWrap.className = 'card-select';
+      selectWrap.innerHTML = `<input type="checkbox" class="email-select-box">`;
+      selectWrap.addEventListener('click', e => e.stopPropagation());
+      card.insertBefore(selectWrap, card.firstChild);
+
+      card.addEventListener('click', () => toggleCardExpand(card));
+    });
+  }
+
+  wireCardExpansion(document.getElementById('emailCards'));
+
+  // ---- mass-delete controls, reusable across every email listing page ----
+  function setupBulkBar(containerId, selectAllId, deleteBtnId, countId) {
+    const container = document.getElementById(containerId);
+    const selectAllBox = document.getElementById(selectAllId);
+    const deleteSelectedBtn = document.getElementById(deleteBtnId);
+    const selectedCountEl = document.getElementById(countId);
+    if (!container || !selectAllBox || !deleteSelectedBtn || !selectedCountEl) return;
+
+    function updateBar() {
+      const checked = container.querySelectorAll('.email-select-box:checked');
+      selectedCountEl.textContent = checked.length;
+      deleteSelectedBtn.disabled = checked.length === 0;
+    }
+
+    // re-checks on every checkbox inside this specific container, even ones added later (live data)
+    container.addEventListener('change', (e) => {
+      if (e.target.classList.contains('email-select-box')) updateBar();
+    });
+
+    selectAllBox.addEventListener('change', () => {
+      container.querySelectorAll('.email-select-box').forEach(cb => { cb.checked = selectAllBox.checked; });
+      updateBar();
+    });
+
+    deleteSelectedBtn.addEventListener('click', async () => {
+      const checkedBoxes = Array.from(container.querySelectorAll('.email-select-box:checked'));
+      if (checkedBoxes.length === 0) return;
+      if (!confirm(`Move ${checkedBoxes.length} email(s) to Trash? You can still recover them from Gmail for 30 days.`)) return;
+
+      deleteSelectedBtn.disabled = true;
+      deleteSelectedBtn.textContent = 'Deleting…';
+
+      for (const box of checkedBoxes) {
+        const card = box.closest('.card');
+        const emailId = card.dataset.id;
+        if (!emailId) { card.remove(); continue; } // sample card, just remove locally
+        try {
+          await fetch(`${API_BASE}/emails/${emailId}`, { method: 'DELETE' });
+          card.remove();
+        } catch (err) {
+          // leave the card in place if delete failed, so it's obvious something didn't go through
+        }
+      }
+      selectAllBox.checked = false;
+      deleteSelectedBtn.textContent = 'Delete selected (0)';
+      updateBar();
+    });
+  }
+
+  setupBulkBar('emailCards', 'selectAllEmails', 'deleteSelectedBtn', 'selectedCount');
+  setupBulkBar('psCards', 'selectAllPs', 'deleteSelectedPsBtn', 'selectedPsCount');
+  setupBulkBar('nrCards', 'selectAllNr', 'deleteSelectedNrBtn', 'selectedNrCount');
+
+  // ---- category tabs (queries cards fresh each click, so it works after live data loads) ----
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      const cat = tab.dataset.tab;
+      document.querySelectorAll('#emailCards .card').forEach(c => {
+        c.classList.toggle('show', cat === 'all' || c.dataset.cat === cat);
+      });
+    });
+  });
+
+  // ---- try to load real emails from the local backend ----
+  function buildEmailCard(e) {
+    const isAi = e.source === 'ai';
+    const card = document.createElement('div');
+    card.className = 'card show';
+    card.dataset.cat = e.category || 'other';
+    card.dataset.id = e.id || '';
+    card.dataset.body = e.body || '';
+    card.dataset.fullsummary = e.full_summary || '';
+    card.innerHTML = `
+      <div class="card-top">
+        <div><div class="card-from">${e.sender}</div><div class="card-subj">${e.subject || ''}</div></div>
+        <span class="tag ${isAi ? 'ai' : 'rule'}">${isAi ? 'AI · ' + Math.round((e.confidence || 0) * 100) + '%' : 'RULE'}</span>
+      </div>
+      ${isAi ? `<div class="conf"><div class="conf-fill" style="width:${Math.round((e.confidence || 0) * 100)}%;"></div></div>` : ''}
+      ${e.summary ? `<div class="card-summary"><b>TL;DR</b>${e.summary}</div>` : ''}
+      ${e.action_needed ? `<div class="card-summary"><b>ACTION</b>${e.action_needed}</div>` : ''}
+      ${e.needs_reply ? `<div class="reply">● needs a reply</div>` : ''}
+    `;
+    return card;
+  }
+
+  async function loadLiveEmails() {
+    const statusLine = document.getElementById('statusLine');
+    try {
+      const res = await fetch(API_BASE + '/emails');
+      if (!res.ok) throw new Error('not reachable');
+      const emails = await res.json();
+      if (!Array.isArray(emails) || emails.length === 0) return; // keep demo data if empty
+
+      const container = document.getElementById('emailCards');
+      container.innerHTML = '';
+      emails.forEach(e => container.appendChild(buildEmailCard(e)));
+      wireCardExpansion(container);
+
+      statusLine.innerHTML = '<span class="dot"></span>LIVE · CONNECTED TO YOUR INBOX';
+      statusLine.style.color = 'var(--teal)';
+    } catch (err) {
+      // local server not running — demo data stays as-is, no error shown to the user
+    }
+  }
+  loadLiveEmails();
+
+  // ---- parent square page: same data, filtered to just that sender ----
+  async function loadParentSquare() {
+    const psStatus = document.getElementById('psStatus');
+    const psContainer = document.getElementById('psCards');
+    try {
+      const res = await fetch(API_BASE + '/emails');
+      if (!res.ok) throw new Error('not reachable');
+      const emails = await res.json();
+      const psEmails = emails.filter(e => (e.sender || '').toLowerCase().includes('parent square'));
+
+      if (psEmails.length === 0) {
+        psStatus.textContent = 'No Parent Square messages found yet — try syncing.';
+        return;
+      }
+
+      psContainer.innerHTML = '';
+      psEmails.forEach(e => psContainer.appendChild(buildEmailCard(e)));
+      wireCardExpansion(psContainer);
+      psStatus.textContent = `${psEmails.length} message${psEmails.length === 1 ? '' : 's'}`;
+    } catch (err) {
+      psStatus.textContent = 'Could not load — check that the live server is running.';
+    }
+  }
+  loadParentSquare();
+
+  // ---- needs-reply page: same data, filtered across all categories ----
+  async function loadNeedsReply() {
+    const nrStatus = document.getElementById('nrStatus');
+    const nrContainer = document.getElementById('nrCards');
+    try {
+      const res = await fetch(API_BASE + '/emails');
+      if (!res.ok) throw new Error('not reachable');
+      const emails = await res.json();
+      const nrEmails = emails.filter(e => e.needs_reply === true);
+
+      if (nrEmails.length === 0) {
+        nrStatus.textContent = 'Nothing needs a reply right now.';
+        return;
+      }
+
+      nrContainer.innerHTML = '';
+      nrEmails.forEach(e => nrContainer.appendChild(buildEmailCard(e)));
+      wireCardExpansion(nrContainer);
+      nrStatus.textContent = `${nrEmails.length} message${nrEmails.length === 1 ? '' : 's'} need a reply`;
+    } catch (err) {
+      nrStatus.textContent = 'Could not load — check that the live server is running.';
+    }
+  }
+  loadNeedsReply();
+
+  // ---- overview page: this week at a glance ----
+  async function loadGlance() {
+    const glanceReply = document.getElementById('glanceReply');
+    const glanceDue = document.getElementById('glanceDue');
+    const dueBadge = document.getElementById('dueBadge');
+    dueBadge.style.display = 'none';
+
+    // needs-reply panel, reuses the same /emails data
+    try {
+      const res = await fetch(API_BASE + '/emails');
+      if (!res.ok) throw new Error('not reachable');
+      const emails = await res.json();
+      const needing = emails.filter(e => e.needs_reply === true).slice(0, 5);
+      if (needing.length === 0) {
+        glanceReply.innerHTML = `<p class="glance-empty">Nothing needs a reply right now.</p>`;
+      } else {
+        glanceReply.innerHTML = needing.map(e => `
+          <div class="glance-item"><span>${e.sender}</span></div>
+        `).join('');
+      }
+    } catch (err) {
+      glanceReply.innerHTML = `<p class="glance-empty">Could not load — check the live server.</p>`;
+    }
+
+    // due-this-week panel, reuses the same /tasks data (already merges Calendar + JARVIS tasks)
+    try {
+      const res = await fetch(API_BASE + '/tasks');
+      if (!res.ok) throw new Error('not reachable');
+      const allTasks = await res.json();
+      const todayISO = fmtISO(new Date());
+      const weekEnd = offsetDate ? offsetDate(6) : null;
+
+      const overdue = allTasks
+        .filter(t => !t.done && t.due_date && t.due_date < todayISO)
+        .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
+      const upcoming = allTasks
+        .filter(t => !t.done && t.due_date && weekEnd && t.due_date >= todayISO && t.due_date <= weekEnd)
+        .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
+
+      if (overdue.length > 0) {
+        dueBadge.textContent = `⚠ ${overdue.length} overdue`;
+        dueBadge.style.display = '';
+      }
+
+      const combined = [...overdue, ...upcoming].slice(0, 6);
+      if (combined.length === 0) {
+        glanceDue.innerHTML = `<p class="glance-empty">Nothing due in the next 7 days.</p>`;
+      } else {
+        glanceDue.innerHTML = combined.map(t => {
+          const isOverdue = t.due_date < todayISO;
+          return `
+          <div class="glance-item">
+            <span>${t.text}</span>
+            <span class="glance-item-meta${isOverdue ? ' overdue' : ''}">${isOverdue ? 'overdue · ' : ''}${t.due_date}${t.due_time ? ' · ' + t.due_time : ''}</span>
+          </div>`;
+        }).join('');
+      }
+    } catch (err) {
+      glanceDue.innerHTML = `<p class="glance-empty">Could not load — check the live server.</p>`;
+    }
+  }
+  loadGlance();
+
+  // ---- sync now button ----
+  const syncNowBtn = document.getElementById('syncNowBtn');
+  const syncNote = document.getElementById('syncNote');
+  if (syncNowBtn) {
+    syncNowBtn.addEventListener('click', async () => {
+      syncNowBtn.disabled = true;
+      syncNowBtn.textContent = 'Syncing…';
+      syncNote.textContent = '';
+      try {
+        const res = await fetch(API_BASE + '/sync', { method: 'POST' });
+        if (!res.ok) throw new Error('sync failed');
+        const data = await res.json();
+        const now = new Date();
+        syncNote.textContent = `Last synced at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${data.synced || 0} emails processed`;
+        // refresh everything on screen with the newly synced data, without a jarring full page reload
+        await Promise.all([
+          loadLiveEmails(),
+          loadLiveTasks(),
+          loadParentSquare(),
+          loadNeedsReply(),
+          loadGlance(),
+        ]);
+      } catch (err) {
+        syncNote.textContent = 'Sync failed — check that the live server is reachable.';
+      } finally {
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = 'Sync now';
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
