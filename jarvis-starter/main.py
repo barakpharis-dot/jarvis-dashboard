@@ -226,10 +226,21 @@ def create_calendar_event(payload: dict):
     link = _create_calendar_event(creds, payload["summary"], payload["date"], payload.get("time"))
     return {"status": "created", "link": link}
 
-@app.delete("/tasks/{task_id}")
-def delete_task(task_id: str):
-    supabase.table("tasks").delete().eq("id", task_id).execute()
-    return {"status": "deleted"}
+@app.delete("/emails/{email_id}")
+def delete_email(email_id: str):
+    """Moves the email to Trash in Gmail (recoverable for 30 days) and removes it from the dashboard's view."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+
+    service = get_gmail_service(creds)
+    service.users().messages().trash(userId="me", id=email_id).execute()
+
+    # unlink any task tied to this email so it isn't lost, but no longer blocks deletion
+    supabase.table("tasks").update({"source_email_id": None}).eq("source_email_id", email_id).execute()
+
+    supabase.table("emails").delete().eq("id", email_id).execute()
+    return {"status": "trashed"}
 
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: str, payload: dict):
