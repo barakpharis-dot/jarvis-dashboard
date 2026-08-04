@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -14,14 +15,7 @@ import base64
 import email.utils
 from email.mime.text import MIMEText
 
-
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-
-@app.get("/")
-def serve_dashboard():
-    return FileResponse("dashboard.html")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,7 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+
+@app.get("/")
+def serve_dashboard():
+    return FileResponse("dashboard.html")
 
 
 def save_credentials(creds: dict):
@@ -83,6 +83,63 @@ def auth_callback(request: Request):
     return JSONResponse({"status": "connected"})
 
 
+def _create_calendar_event(creds, summary, date, time=None):
+    """Creates a real Google Calendar event. Returns both the id (needed to delete it later) and the link."""
+    service = get_calendar_service(creds)
+    if time:
+        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+        end_dt = start_dt + timedelta(hours=1)
+        event = {
+            "summary": summary,
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
+            "description": "Added from JARVIS",
+        }
+    else:
+        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
+        event = {
+            "summary": summary,
+            "start": {"date": date},
+            "end": {"date": end_date},
+            "description": "Added from JARVIS",
+        }
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    return {"id": created.get("id"), "link": created.get("htmlLink")}
+
+
+def _fetch_calendar_events(creds, days_ahead=30):
+    """Pulls upcoming events straight from Google Calendar, so things added there (not through JARVIS) still show up here."""
+    service = get_calendar_service(creds)
+    now = datetime.utcnow()
+    time_min = now.isoformat() + "Z"
+    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+    events_result = service.events().list(
+        calendarId="primary", timeMin=time_min, timeMax=time_max,
+        singleEvents=True, orderBy="startTime", maxResults=100,
+    ).execute()
+
+    parsed = []
+    for e in events_result.get("items", []):
+        start = e.get("start", {})
+        if "date" in start:
+            due_date, due_time = start["date"], None
+        elif "dateTime" in start:
+            dt = datetime.fromisoformat(start["dateTime"])
+            due_date, due_time = dt.date().isoformat(), dt.strftime("%H:%M")
+        else:
+            continue
+        parsed.append({
+            "id": f"gcal-{e['id']}",
+            "text": e.get("summary", "(no title)"),
+            "due_date": due_date,
+            "due_time": due_time,
+            "source": "calendar",
+            "done": False,
+            "calendar_event_link": e.get("htmlLink"),
+        })
+    return parsed
+
+
 @app.post("/sync")
 def sync():
     """Pulls recent emails, classifies each, and upserts into Supabase."""
@@ -134,68 +191,27 @@ def sync():
                 }
                 if task_row["due_date"]:
                     try:
-                        task_row["calendar_event_link"] = _create_calendar_event(creds, task_row["text"], task_row["due_date"], task_row["due_time"])
+                        event = _create_calendar_event(creds, task_row["text"], task_row["due_date"], task_row["due_time"])
+                        task_row["calendar_event_id"] = event["id"]
+                        task_row["calendar_event_link"] = event["link"]
                     except Exception as e:
                         print(f"Could not auto-create calendar event for task: {e}")
                 supabase.table("tasks").insert(task_row).execute()
+
         results.append(row)
 
     return {"synced": len(results), "emails": results}
 
 
-def _create_calendar_event(creds, summary, date, time=None):
-    service = get_calendar_service(creds)
-    if time:
-        start_dt = datetime.fromisoformat(f"{date}T{time}:00")
-        end_dt = start_dt + timedelta(hours=1)
-        event = {
-            "summary": summary,
-            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
-            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
-            "description": "Added from JARVIS",
-        }
-    else:
-        end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
-        event = {
-            "summary": summary,
-            "start": {"date": date},
-            "end": {"date": end_date},
-            "description": "Added from JARVIS",
-        }
-    created = service.events().insert(calendarId="primary", body=event).execute()
-    return created.get("htmlLink")
+@app.post("/calendar/event")
+def create_calendar_event(payload: dict):
+    """payload = {"summary": "...", "date": "YYYY-MM-DD", "time": "HH:MM" (optional)}"""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    event = _create_calendar_event(creds, payload["summary"], payload["date"], payload.get("time"))
+    return {"status": "created", "link": event["link"]}
 
-def _fetch_calendar_events(creds, days_ahead=30):
-    """Pulls upcoming events straight from Google Calendar, so things added there (not through JARVIS) still show up here."""
-    service = get_calendar_service(creds)
-    now = datetime.utcnow()
-    time_min = now.isoformat() + "Z"
-    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
-    events_result = service.events().list(
-        calendarId="primary", timeMin=time_min, timeMax=time_max,
-        singleEvents=True, orderBy="startTime", maxResults=100,
-    ).execute()
-
-    parsed = []
-    for e in events_result.get("items", []):
-        start = e.get("start", {})
-        if "date" in start:
-            due_date, due_time = start["date"], None
-        elif "dateTime" in start:
-            dt = datetime.fromisoformat(start["dateTime"])
-            due_date, due_time = dt.date().isoformat(), dt.strftime("%H:%M")
-        else:
-            continue
-        parsed.append({
-            "id": f"gcal-{e['id']}",
-            "text": e.get("summary", "(no title)"),
-            "due_date": due_date,
-            "due_time": due_time,
-            "source": "calendar",
-            "done": False,
-            "calendar_event_link": e.get("htmlLink"),
-        })
-    return parsed
 
 @app.get("/tasks")
 def list_tasks():
@@ -217,36 +233,50 @@ def list_tasks():
             merged.append(ev)
     return merged
 
-@app.post("/calendar/event")
-def create_calendar_event(payload: dict):
-    """payload = {"summary": "...", "date": "YYYY-MM-DD", "time": "HH:MM" (optional)}"""
-    creds = load_credentials()
-    if not creds:
-        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
-    link = _create_calendar_event(creds, payload["summary"], payload["date"], payload.get("time"))
-    return {"status": "created", "link": link}
 
-@app.delete("/emails/{email_id}")
-def delete_email(email_id: str):
-    """Moves the email to Trash in Gmail (recoverable for 30 days) and removes it from the dashboard's view."""
-    creds = load_credentials()
-    if not creds:
-        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+@app.post("/tasks")
+def create_task(payload: dict):
+    """payload = {"text": "...", "due_date": "YYYY-MM-DD" (optional), "due_time": "HH:MM" (optional)}"""
+    row = {
+        "text": payload["text"],
+        "due_date": payload.get("due_date"),
+        "due_time": payload.get("due_time"),
+        "source": "manual",
+        "done": False,
+    }
+    if row["due_date"]:
+        creds = load_credentials()
+        if creds:
+            try:
+                event = _create_calendar_event(creds, row["text"], row["due_date"], row["due_time"])
+                row["calendar_event_id"] = event["id"]
+                row["calendar_event_link"] = event["link"]
+            except Exception as e:
+                print(f"Could not auto-create calendar event: {e}")
+    created = supabase.table("tasks").insert(row).execute()
+    return created.data[0]
 
-    service = get_gmail_service(creds)
-    service.users().messages().trash(userId="me", id=email_id).execute()
-
-    # unlink any task tied to this email so it isn't lost, but no longer blocks deletion
-    supabase.table("tasks").update({"source_email_id": None}).eq("source_email_id", email_id).execute()
-
-    supabase.table("emails").delete().eq("id", email_id).execute()
-    return {"status": "trashed"}
 
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: str, payload: dict):
     """payload = {"done": true or false}"""
     supabase.table("tasks").update({"done": payload["done"]}).eq("id", task_id).execute()
     return {"status": "updated"}
+
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str):
+    task = supabase.table("tasks").select("*").eq("id", task_id).execute().data
+    if task and task[0].get("calendar_event_id"):
+        creds = load_credentials()
+        if creds:
+            try:
+                service = get_calendar_service(creds)
+                service.events().delete(calendarId="primary", eventId=task[0]["calendar_event_id"]).execute()
+            except Exception as e:
+                print(f"Could not delete calendar event for task {task_id}: {e}")
+    supabase.table("tasks").delete().eq("id", task_id).execute()
+    return {"status": "deleted"}
 
 
 @app.get("/emails")
@@ -266,6 +296,10 @@ def delete_email(email_id: str):
 
     service = get_gmail_service(creds)
     service.users().messages().trash(userId="me", id=email_id).execute()
+
+    # unlink any task tied to this email so it isn't lost, but no longer blocks deletion
+    supabase.table("tasks").update({"source_email_id": None}).eq("source_email_id", email_id).execute()
+
     supabase.table("emails").delete().eq("id", email_id).execute()
     return {"status": "trashed"}
 
