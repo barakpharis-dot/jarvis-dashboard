@@ -269,8 +269,19 @@ def update_task(task_id: str, payload: dict):
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: str):
-    """Deletes the task, removes its Calendar event if it has one, and marks the originating
-    email so a future sync doesn't just recreate the same task from it."""
+    if task_id.startswith("gcal-"):
+        # this is a live Calendar event with no JARVIS record -- delete it directly from Calendar
+        creds = load_credentials()
+        if not creds:
+            return JSONResponse({"error": "not authenticated"}, status_code=401)
+        real_event_id = task_id[len("gcal-"):]
+        try:
+            service = get_calendar_service(creds)
+            service.events().delete(calendarId="primary", eventId=real_event_id).execute()
+        except Exception as e:
+            print(f"Could not delete calendar event {real_event_id}: {e}")
+        return {"status": "deleted"}
+
     task = supabase.table("tasks").select("*").eq("id", task_id).execute().data
     if task:
         t = task[0]

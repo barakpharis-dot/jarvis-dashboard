@@ -896,7 +896,7 @@
     setTimeout(() => row.remove(), 150);
     tasks = tasks.filter(t => t.id !== taskId);
     loadGlance();
-    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-') || String(taskId).startsWith('gcal-')) return;
+    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-')) return;
     try {
       await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
     } catch (err) {
