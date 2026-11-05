@@ -15,8 +15,8 @@
     --border: #2A3A4C;
     --text: #E7EDF3;
     --text-dim: #8CA0B3;
-    --teal: #4FD1C5;
-    --teal-dim: #1F4F49;
+    --teal: #C265FF;
+    --teal-dim: #33194F;
     --amber: #E8A33D;
     --amber-dim: #4F3B1A;
     --violet: #9B8FE0;
@@ -37,6 +37,7 @@
   }
   .topnav-inner::-webkit-scrollbar{display:none;}
   .topnav-brand{
+    text-shadow:0 0 14px rgba(194,101,255,0.6);
     font-family:'JetBrains Mono', monospace;font-weight:700;font-size:13px;
     color:var(--teal);padding:14px 14px 14px 0;flex-shrink:0;
     text-decoration:none;
@@ -69,7 +70,7 @@
     border-bottom:1px solid var(--border);
     padding:52px 0 40px;
     background:
-      linear-gradient(180deg, rgba(79,209,197,0.05), transparent 60%);
+      linear-gradient(180deg, rgba(194,101,255,0.05), transparent 60%);
   }
   .status-line{
     font-size:12px;
@@ -100,8 +101,8 @@
     animation:pulse 1.8s infinite ease-in-out;
   }
   @keyframes pulse{
-    0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(79,209,197,0.5);}
-    50%{opacity:0.5; box-shadow:0 0 0 6px rgba(79,209,197,0);}
+    0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(194,101,255,0.5);}
+    50%{opacity:0.5; box-shadow:0 0 0 6px rgba(194,101,255,0);}
   }
   h1.title{
     font-family:'JetBrains Mono', monospace;
@@ -342,7 +343,7 @@
   }
   .tag.rule{background:var(--amber-dim); color:var(--amber);}
   .tag.ai{background:var(--teal-dim); color:var(--teal);}
-  .tag.calendar{background:rgba(155,143,224,0.15); color:var(--violet);}
+  .tag.calendar{background:rgba(108,180,255,0.15); color:#6CB4FF;}
   .conf{
     margin-top:10px;
     height:4px;
@@ -509,7 +510,7 @@
 
   @keyframes jumpFlash{
     0%{box-shadow:0 0 0 2px var(--teal);}
-    100%{box-shadow:0 0 0 0 rgba(79,209,197,0);}
+    100%{box-shadow:0 0 0 0 rgba(194,101,255,0);}
   }
   .jump-highlight{animation:jumpFlash 1.5s ease-out;}
 
