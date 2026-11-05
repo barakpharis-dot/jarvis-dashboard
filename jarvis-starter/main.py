@@ -142,7 +142,9 @@ def _fetch_calendar_events(creds, days_ahead=30):
 
 @app.post("/sync")
 def sync():
-    """Pulls recent emails, classifies each, and upserts into Supabase."""
+    """Pulls recent emails, classifies each, and upserts into Supabase.
+    Action items found in emails are saved as SUGGESTED tasks (approved = false).
+    They only become real tasks (and Calendar events) when you approve them on the Tasks page."""
     creds = load_credentials()
     if not creds:
         return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
@@ -150,8 +152,14 @@ def sync():
     service = get_gmail_service(creds)
     messages = fetch_recent_messages(service)
 
+    # emails you've cleared from the dashboard are skipped entirely
+    archived_ids = {r["id"] for r in supabase.table("emails").select("id").eq("archived", True).execute().data}
+
     results = []
     for email in messages:
+        if email["id"] in archived_ids:
+            continue
+
         try:
             result = classify(email)
         except Exception as e:
@@ -184,22 +192,15 @@ def sync():
         if result.get("action_needed") and not was_dismissed:
             existing = supabase.table("tasks").select("id").eq("source_email_id", email["id"]).execute()
             if not existing.data:
-                task_row = {
+                supabase.table("tasks").insert({
                     "text": result["action_needed"],
                     "due_date": result.get("due_date"),
                     "due_time": result.get("due_time"),
                     "source": "ai",
                     "source_email_id": email["id"],
                     "done": False,
-                }
-                if task_row["due_date"]:
-                    try:
-                        event = _create_calendar_event(creds, task_row["text"], task_row["due_date"], task_row["due_time"])
-                        task_row["calendar_event_id"] = event["id"]
-                        task_row["calendar_event_link"] = event["link"]
-                    except Exception as e:
-                        print(f"Could not auto-create calendar event for task: {e}")
-                supabase.table("tasks").insert(task_row).execute()
+                    "approved": False,
+                }).execute()
 
         results.append(row)
 
@@ -246,6 +247,7 @@ def create_task(payload: dict):
         "due_time": payload.get("due_time"),
         "source": "manual",
         "done": False,
+        "approved": True,
     }
     if row["due_date"]:
         creds = load_credentials()
@@ -260,6 +262,29 @@ def create_task(payload: dict):
     return created.data[0]
 
 
+@app.post("/tasks/{task_id}/approve")
+def approve_task(task_id: str):
+    """Turns a suggested task into a real one, and adds it to Google Calendar if it has a due date."""
+    found = supabase.table("tasks").select("*").eq("id", task_id).execute().data
+    if not found:
+        return JSONResponse({"error": "task not found"}, status_code=404)
+    t = found[0]
+
+    update = {"approved": True}
+    if t.get("due_date") and not t.get("calendar_event_id"):
+        creds = load_credentials()
+        if creds:
+            try:
+                event = _create_calendar_event(creds, t["text"], t["due_date"], t.get("due_time"))
+                update["calendar_event_id"] = event["id"]
+                update["calendar_event_link"] = event["link"]
+            except Exception as e:
+                print(f"Could not create calendar event for approved task {task_id}: {e}")
+
+    updated = supabase.table("tasks").update(update).eq("id", task_id).execute()
+    return updated.data[0]
+
+
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: str, payload: dict):
     """payload = {"done": true or false}"""
@@ -269,8 +294,9 @@ def update_task(task_id: str, payload: dict):
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: str):
+    """Deletes the task (or dismisses a suggestion), removes its Calendar event if it has one,
+    and marks the originating email so a future sync doesn't just recreate the same task."""
     if task_id.startswith("gcal-"):
-        # this is a live Calendar event with no JARVIS record -- delete it directly from Calendar
         creds = load_credentials()
         if not creds:
             return JSONResponse({"error": "not authenticated"}, status_code=401)
@@ -301,7 +327,8 @@ def delete_task(task_id: str):
 
 @app.get("/emails")
 def list_emails(category: str | None = None):
-    query = supabase.table("emails").select("*").order("received_at", desc=True)
+    # archived emails are hidden from the dashboard (they are still in Gmail)
+    query = supabase.table("emails").select("*").eq("archived", False).order("received_at", desc=True)
     if category:
         query = query.eq("category", category)
     return query.execute().data

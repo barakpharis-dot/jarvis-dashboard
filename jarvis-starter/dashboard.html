@@ -449,6 +449,15 @@
   .cal-link.cal-loading{opacity:0.5;}
   .cal-link.cal-added{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:pointer;}
   .cal-link.cal-error{border-color:var(--red);color:var(--red);}
+  .suggested-panel{
+    background:var(--panel);border:1px solid var(--teal-dim);border-radius:10px;
+    padding:14px 16px;margin-bottom:18px;
+  }
+  .suggested-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .suggested-title{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--teal);letter-spacing:0.04em;}
+  .suggested-count{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--bg);background:var(--teal);border-radius:10px;padding:1px 8px;}
+  .suggested-hint{font-size:12px;color:var(--text-dim);margin:0 0 10px;}
+  .task.suggested{border-style:dashed;}
   .task-text-linked{
     cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--teal-dim);
   }
@@ -631,58 +640,7 @@
       <button type="button" id="deleteSelectedBtn" class="btn-delete-bulk" disabled>Delete selected (<span id="selectedCount">0</span>)</button>
     </div>
 
-    <div id="emailCards">
-    <div class="card show" data-cat="finance" data-body="Your November statement is now available. Balance: $1,204.18. Minimum payment due Nov 28. Log in to view full details.">
-      <div class="card-top">
-        <div><div class="card-from">Chase Bank</div><div class="card-subj">Your statement is ready</div></div>
-        <span class="tag rule">RULE</span>
-      </div>
-    </div>
-    <div class="card show" data-cat="networking"
-      data-body="Hey! Quick one - can we push our Thursday call to Friday afternoon instead? Something came up on my end. Also, did you get a chance to look at the deck I sent over last week? No rush, just want to make sure it didn't land in spam. Let me know what works for Friday, anytime after 1pm is good on my side."
-      data-fullsummary="Priya is asking to reschedule your Thursday call to Friday afternoon due to a conflict on her end, and is checking whether you've had a chance to review the deck she sent last week. She's flexible on timing Friday, suggesting anytime after 1pm.">
-      <div class="card-top">
-        <div><div class="card-from">Priya Nair</div><div class="card-subj">Following up on Thursday's call</div></div>
-        <span class="tag ai">AI · 94%</span>
-      </div>
-      <div class="conf"><div class="conf-fill" style="width:94%;"></div></div>
-      <div class="card-summary"><b>TL;DR</b>Wants to move Thursday's call to Friday afternoon and asks if you had a chance to look at her deck.</div>
-      <div class="reply">● needs a reply</div>
-    </div>
-    <div class="card show" data-cat="promotions" data-body="Your Tuesday trip with Uber - $14.32. Trip from Downtown to Home. Thanks for riding!">
-      <div class="card-top">
-        <div><div class="card-from">Uber Receipts</div><div class="card-subj">Your Tuesday trip total</div></div>
-        <span class="tag rule">RULE</span>
-      </div>
-    </div>
-    <div class="card show" data-cat="family"
-      data-body="Hi honey, just confirming dinner Sunday at 6! Should I make my green bean casserole or do you want to bring dessert this time? Let me know so I can plan the shopping. Love you!"
-      data-fullsummary="Mom is confirming Sunday dinner at 6pm and asking whether she should make her usual green bean casserole or if you'll bring dessert instead, so she can plan her grocery shopping accordingly.">
-      <div class="card-top">
-        <div><div class="card-from">Mom</div><div class="card-subj">Are you coming Sunday?</div></div>
-        <span class="tag ai">AI · 88%</span>
-      </div>
-      <div class="conf"><div class="conf-fill" style="width:88%;"></div></div>
-      <div class="card-summary"><b>TL;DR</b>Confirming dinner at 6 on Sunday and asking if you're bringing dessert or she should.</div>
-      <div class="reply">● needs a reply</div>
-    </div>
-    <div class="card show" data-cat="finance"
-      data-body="Your Q3 statement is attached. Please also note that starting next quarter, your employer's 401k match rate will change from 4% to 3.5% per the updated plan documents. No action is required on your part at this time, but we wanted to give you advance notice."
-      data-fullsummary="Your Q3 statement is attached, and Fidelity is giving advance notice that your employer's 401k match rate is decreasing from 4% to 3.5% starting next quarter. No action is required right now, this is informational only.">
-      <div class="card-top">
-        <div><div class="card-from">Fidelity</div><div class="card-subj">Q3 statement + a note about your 401k</div></div>
-        <span class="tag ai">AI · 71%</span>
-      </div>
-      <div class="conf"><div class="conf-fill" style="width:71%;"></div></div>
-      <div class="card-summary"><b>TL;DR</b>Statement attached, plus a heads-up that your employer match rate is changing starting next quarter.</div>
-    </div>
-    <div class="card show" data-cat="promotions">
-      <div class="card-top">
-        <div><div class="card-from">REI</div><div class="card-subj">30% off ends tonight</div></div>
-        <span class="tag rule">RULE</span>
-      </div>
-    </div>
-    </div>
+    <div id="emailCards"><p class="sec-desc">Loading…</p></div>
 
     <div class="rule-note">A person's message is <b>never hidden</b>, even when the model isn't sure — uncertainty routes to review, not to the archive.</div>
   </div>
@@ -742,6 +700,15 @@
       <button type="button" class="add-task-cancel" id="addTaskCancel">Cancel</button>
     </form>
 
+    <div class="suggested-panel" id="suggestedPanel" style="display:none;">
+      <div class="suggested-header">
+        <span class="suggested-title">Suggested from email</span>
+        <span class="suggested-count" id="suggestedCount">0</span>
+      </div>
+      <p class="suggested-hint">Check the box to add a task to your list and Google Calendar. The ✕ dismisses it for good.</p>
+      <div id="suggestedList"></div>
+    </div>
+
     <div class="week-strip" id="weekStrip"></div>
 
     <p class="task-counter" id="taskCounter"></p>
@@ -793,14 +760,7 @@
   function fmtISO(d) { return d.toISOString().slice(0, 10); }
   function offsetDate(n) { const d = new Date(today); d.setDate(today.getDate() + n); return fmtISO(d); }
 
-  // sample data, shown until (or unless) the real backend is reachable
-  let tasks = [
-    { id: 'demo1', text: "Reply to Priya re: Thursday's call", due_date: offsetDate(0), due_time: null, source: "ai", done: false },
-    { id: 'demo2', text: "Send Fidelity the signed rollover form", due_date: offsetDate(1), due_time: null, source: "ai", done: false },
-    { id: 'demo3', text: "Pack for Chicago trip", due_date: offsetDate(4), due_time: null, source: "manual", done: false },
-    { id: 'demo4', text: "Print field trip permission slips", due_date: offsetDate(3), due_time: "15:30", source: "manual", done: false },
-    { id: 'demo5', text: "Call Mom back about Sunday", due_date: offsetDate(0), due_time: null, source: "ai", done: true },
-  ];
+  let tasks = [];
 
   const weekStrip = document.getElementById('weekStrip');
   let selectedDayFilter = null; // null = show all tasks; otherwise an ISO date string
@@ -820,8 +780,8 @@
     for (let i = 0; i < 7; i++) {
       const iso = offsetDate(i);
       const d = new Date(today); d.setDate(today.getDate() + i);
-      const hasTask = tasks.some(t => !t.done && t.due_date === iso);
-      const isAi = tasks.some(t => !t.done && t.due_date === iso && t.source === 'ai');
+      const hasTask = tasks.some(t => t.approved !== false && !t.done && t.due_date === iso);
+      const isAi = tasks.some(t => t.approved !== false && !t.done && t.due_date === iso && t.source === 'ai');
       const box = document.createElement('div');
       box.className = 'day-box'
         + (i === 0 ? ' today' : '')
@@ -878,8 +838,10 @@
   async function toggleTaskDone(task, done) {
     task.done = done;
     renderTasks();
-    loadGlance();
-    if (String(task.id).startsWith('demo') || String(task.id).startsWith('gcal-')) return; // sample or calendar-only, nothing to save
+    if (String(task.id).startsWith('demo') || String(task.id).startsWith('gcal-')) {
+      loadGlance();
+      return; // sample or calendar-only, nothing to save
+    }
     try {
       await fetch(`${API_BASE}/tasks/${task.id}`, {
         method: 'PATCH',
@@ -889,29 +851,87 @@
     } catch (err) {
       // local server not running -- checkbox state just won't persist, no error shown
     }
+    loadGlance();
   }
 
   async function deleteTask(taskId, row) {
     row.style.opacity = '0';
     setTimeout(() => row.remove(), 150);
     tasks = tasks.filter(t => t.id !== taskId);
-    loadGlance();
-    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-')) return;
+    if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-')) {
+      loadGlance();
+      return;
+    }
     try {
       await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
     } catch (err) {
       // local server not running -- task stays removed locally for this session
     }
+    loadGlance();
+  }
+
+  async function approveTask(task, checkbox) {
+    checkbox.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${task.id}/approve`, { method: 'POST' });
+      if (!res.ok) throw new Error('approve failed');
+      const saved = await res.json();
+      task.approved = true;
+      task.calendar_event_link = saved.calendar_event_link || null;
+      renderTasks();
+      loadGlance();
+    } catch (err) {
+      checkbox.checked = false;
+      checkbox.disabled = false;
+      alert('Could not add that task. Please try again.');
+    }
+  }
+
+  function renderSuggested(list) {
+    const panel = document.getElementById('suggestedPanel');
+    const listEl = document.getElementById('suggestedList');
+    const countEl = document.getElementById('suggestedCount');
+    if (!panel || !listEl || !countEl) return;
+    panel.style.display = list.length ? '' : 'none';
+    countEl.textContent = list.length;
+    listEl.innerHTML = '';
+    list.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'task suggested';
+      const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
+      const linked = !!t.source_email_id;
+      row.innerHTML = `
+        <input type="checkbox" class="suggest-check" title="Add to my tasks">
+        <span class="task-text ${linked ? 'task-text-linked' : ''}"></span>
+        <span class="task-due">${dueLabel(t.due_date)}${timeLabel}</span>
+        <button class="task-dismiss" type="button" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">✕</button>
+      `;
+      const textEl = row.querySelector('.task-text');
+      textEl.textContent = t.text;
+      if (linked) {
+        textEl.title = 'Open the email this came from';
+        textEl.addEventListener('click', () => jumpToEmail(t.source_email_id));
+      }
+      const box = row.querySelector('.suggest-check');
+      box.addEventListener('change', () => { if (box.checked) approveTask(t, box); });
+      row.querySelector('.task-dismiss').addEventListener('click', () => {
+        deleteTask(t.id, row);
+        renderSuggested(tasks.filter(x => x.approved === false));
+      });
+      listEl.appendChild(row);
+    });
   }
 
   function renderTasks() {
     taskList.innerHTML = '';
-    const visibleTasks = selectedDayFilter ? tasks.filter(t => t.due_date === selectedDayFilter) : tasks;
+    const approvedTasks = tasks.filter(t => t.approved !== false);
+    const suggestedTasks = tasks.filter(t => t.approved === false);
+    const visibleTasks = selectedDayFilter ? approvedTasks.filter(t => t.due_date === selectedDayFilter) : approvedTasks;
 
-    if (selectedDayFilter && visibleTasks.length === 0) {
+    if (visibleTasks.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'task-filter-empty';
-      empty.textContent = 'Nothing due this day.';
+      empty.textContent = selectedDayFilter ? 'Nothing due this day.' : 'No tasks yet.';
       taskList.appendChild(empty);
     }
 
@@ -947,7 +967,7 @@
       taskList.appendChild(row);
     });
 
-    const open = tasks.filter(t => !t.done).length;
+    const open = approvedTasks.filter(t => !t.done).length;
     if (selectedDayFilter) {
       const d = new Date(selectedDayFilter + 'T00:00:00');
       const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
@@ -959,8 +979,9 @@
         renderTasks();
       });
     } else {
-      counterEl.innerHTML = `<b>${open}</b> of ${tasks.length} open`;
+      counterEl.innerHTML = `<b>${open}</b> of ${approvedTasks.length} open`;
     }
+    renderSuggested(suggestedTasks);
     renderWeekStrip();
   }
   renderTasks();
@@ -1025,11 +1046,12 @@
       const res = await fetch(API_BASE + '/tasks');
       if (!res.ok) throw new Error('not reachable');
       const liveTasks = await res.json();
-      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+      if (Array.isArray(liveTasks)) {
         tasks = liveTasks.map(t => ({
           id: t.id, text: t.text, due_date: t.due_date, due_time: t.due_time,
           source: t.source, done: t.done, calendar_event_link: t.calendar_event_link || null,
           source_email_id: t.source_email_id || null,
+          approved: t.approved !== false,
         }));
         renderTasks();
       }
@@ -1299,10 +1321,13 @@
       const res = await fetch(API_BASE + '/emails');
       if (!res.ok) throw new Error('not reachable');
       const emails = await res.json();
-      if (!Array.isArray(emails) || emails.length === 0) return; // keep demo data if empty
+      if (!Array.isArray(emails)) return;
 
       const container = document.getElementById('emailCards');
       container.innerHTML = '';
+      if (emails.length === 0) {
+        container.innerHTML = '<p class="sec-desc">No emails to show right now.</p>';
+      }
       emails.forEach(e => container.appendChild(buildEmailCard(e)));
       wireCardExpansion(container);
       applyInboxFilters();
@@ -1414,13 +1439,15 @@
       const allTasks = await res.json();
       const todayISO = fmtISO(new Date());
       const weekEnd = offsetDate ? offsetDate(6) : null;
-      document.getElementById('glanceTaskCount').textContent = allTasks.filter(t => !t.done).length;
+      const openCount = allTasks.filter(t => !t.done && t.approved !== false).length;
+      const newCount = allTasks.filter(t => t.approved === false).length;
+      document.getElementById('glanceTaskCount').textContent = newCount ? `${openCount} · ${newCount} new` : `${openCount}`;
 
       const overdue = allTasks
-        .filter(t => !t.done && t.due_date && t.due_date < todayISO)
+        .filter(t => t.approved !== false && !t.done && t.due_date && t.due_date < todayISO)
         .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
       const upcoming = allTasks
-        .filter(t => !t.done && t.due_date && weekEnd && t.due_date >= todayISO && t.due_date <= weekEnd)
+        .filter(t => t.approved !== false && !t.done && t.due_date && weekEnd && t.due_date >= todayISO && t.due_date <= weekEnd)
         .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
 
       if (overdue.length > 0) {
