@@ -322,11 +322,22 @@ def social_event(payload: dict):
     date = payload.get("date")
     if not title or not date:
         return JSONResponse({"error": "title and date are required"}, status_code=400)
-    event = _create_calendar_event(
-        creds, title, date, payload.get("time") or None,
-        description="Social event added from JARVIS", end_time=payload.get("end_time") or None,
-    )
-    supabase.table("social_events").upsert({"event_id": event["id"]}).execute()
+    social = payload.get("social", True)
+    try:
+        event = _create_calendar_event(
+            creds, title, date, payload.get("time") or None,
+            description="Social event added from JARVIS" if social else "Event added from JARVIS",
+            end_time=payload.get("end_time") or None,
+        )
+    except Exception as e:
+        print(f"Could not create calendar event: {e}")
+        return JSONResponse({"error": "could not create the calendar event"}, status_code=502)
+    if social:
+        try:
+            supabase.table("social_events").upsert({"event_id": event["id"]}).execute()
+        except Exception as e:
+            # the event is on your calendar either way; only the social marking failed
+            print(f"Event created but could not mark it social: {e}")
     return {"status": "created", "id": event["id"], "link": event["link"]}
 
 
