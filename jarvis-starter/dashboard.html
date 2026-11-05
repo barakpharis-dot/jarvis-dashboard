@@ -519,6 +519,48 @@
   .social-act.del:hover{color:var(--red);}
   .social-loc{font-size:11px;color:var(--text-dim);margin-top:2px;overflow-wrap:anywhere;}
 
+  .task-views{display:flex;gap:6px;margin-bottom:12px;}
+  .view-pill{font-family:'JetBrains Mono', monospace;font-size:11.5px;padding:6px 14px;border-radius:14px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;}
+  .view-pill.on{background:var(--teal-dim);color:var(--teal);border-color:var(--teal);}
+  .day-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .day-label{font-size:15px;font-weight:500;color:var(--text);margin-left:6px;}
+  .day-bar{display:inline-block;width:110px;height:6px;background:var(--panel-alt);border-radius:3px;margin-left:10px;vertical-align:middle;overflow:hidden;}
+  .day-bar-fill{display:block;height:100%;background:var(--teal);}
+  .task-allclear{color:var(--teal);font-size:13px;margin:10px 0 0;}
+  .task-move{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;font-family:'JetBrains Mono', monospace;font-size:11px;padding:2px 7px;cursor:pointer;flex-shrink:0;}
+  .task-move:hover{color:var(--teal);border-color:var(--teal);}
+  .overdue-box{border:1px solid var(--red);border-radius:10px;padding:12px 14px;margin:14px 0;background:rgba(224,104,95,0.06);}
+  .overdue-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+  .overdue-title{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--red);}
+  .overdue-all, .show-more, .undated-toggle{background:transparent;border:none;font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--teal);cursor:pointer;padding:0;}
+  .overdue-all:hover, .show-more:hover, .undated-toggle:hover{text-decoration:underline;}
+  .tomorrow-box{border:1px dashed var(--border);border-radius:10px;padding:12px 14px;margin:18px 0 10px;}
+  .tomorrow-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+  .tomorrow-title{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--text);}
+  .tomorrow-count{font-size:12px;color:var(--text-dim);}
+  .tomorrow-go{margin-left:auto;}
+  .tomorrow-item{display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text);cursor:pointer;}
+  .tomorrow-time{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--teal);min-width:70px;flex-shrink:0;}
+  .tomorrow-more{font-size:12px;color:var(--text-dim);}
+  .undated-box{margin-top:14px;}
+  .week-group{margin-bottom:14px;}
+  .week-group-head{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);padding:6px 0;margin-bottom:6px;cursor:pointer;text-align:left;color:var(--text);font-size:13px;font-weight:500;font-family:inherit;}
+  .week-group-head:hover{color:var(--teal);}
+  .week-group-count{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--bg);background:var(--teal);border-radius:10px;padding:1px 8px;}
+  .week-none{color:var(--text-dim);font-size:12px;padding:2px 0 6px;}
+  .month-grid{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:6px;}
+  .month-head{font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--text-dim);text-align:center;padding-bottom:2px;}
+  .month-cell{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px;min-height:78px;cursor:pointer;overflow:hidden;}
+  .month-cell.out{opacity:0.4;}
+  .month-cell.today{border-color:var(--teal);}
+  .month-cell.selected{background:var(--teal-dim);}
+  .month-cell:hover{border-color:var(--text-dim);}
+  .month-num{font-size:12px;font-weight:500;display:flex;justify-content:space-between;align-items:center;}
+  .month-count{font-family:'JetBrains Mono', monospace;font-size:10px;color:var(--bg);background:var(--teal);border-radius:8px;padding:0 6px;}
+  .month-item{font-size:10.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;}
+  .month-more{font-size:10px;color:var(--text-dim);margin-top:2px;}
+  @media (max-width:640px){ .month-item, .month-more{display:none;} .month-cell{min-height:46px;} }
+
   .suggested-panel{
     background:var(--panel);border:1px solid var(--teal-dim);border-radius:10px;
     padding:14px 16px;margin-bottom:18px;
@@ -765,7 +807,7 @@
       <h2 class="sec-title">Tasks &amp; calendar</h2>
       <a class="gcal-open" href="https://calendar.google.com/calendar/r" target="_blank" rel="noopener">Open Google Calendar ↗</a>
     </div>
-    <p class="sec-desc">When a thread implies a commitment — "let's meet Friday," "send it over by Wednesday" — Claude lifts it out into a task with a due date, instead of leaving it buried in your inbox. Manual to-dos live in the same list.</p>
+    <p class="sec-desc">One day at a time. Check things off to cross them out, peek at tomorrow, or switch to Week or Month to plan ahead.</p>
     <div class="legend">
       <span><span class="swatch" style="background:var(--amber);"></span>manual — you added it</span>
       <span><span class="swatch" style="background:var(--teal);"></span>lifted from an email</span>
@@ -789,10 +831,26 @@
       <div id="suggestedList"></div>
     </div>
 
+    <div class="task-views">
+      <button type="button" class="view-pill on" data-view="day">Day</button>
+      <button type="button" class="view-pill" data-view="week">Week</button>
+      <button type="button" class="view-pill" data-view="month">Month</button>
+    </div>
+
+    <div class="day-nav">
+      <button type="button" id="dayPrev" class="social-btn" aria-label="Previous">‹</button>
+      <button type="button" id="dayToday" class="social-btn">Today</button>
+      <button type="button" id="dayNext" class="social-btn" aria-label="Next">›</button>
+      <span id="dayLabel" class="day-label"></span>
+    </div>
+
     <div class="week-strip" id="weekStrip"></div>
 
     <p class="task-counter" id="taskCounter"></p>
+    <div id="overdueBox" style="display:none;"></div>
     <div id="taskList"></div>
+    <div id="tomorrowBox" style="display:none;"></div>
+    <div id="undatedBox" style="display:none;"></div>
   </div>
 </section>
 
@@ -878,7 +936,12 @@
   let tasks = [];
 
   const weekStrip = document.getElementById('weekStrip');
-  let selectedDayFilter = null; // null = show all tasks; otherwise an ISO date string
+  let taskView = 'day';                         // 'day' | 'week' | 'month'
+  let selectedDay = fmtISO(today);              // the day shown in Day view
+  let monthCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  let overdueExpanded = false;
+  let undatedOpen = false;
+  let suggestedExpanded = false;
 
   function dueLabel(dueDateStr) {
     if (!dueDateStr) return 'no due date';
@@ -890,26 +953,51 @@
     return dueDateStr;
   }
 
+  function addDaysISO(iso, n) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return fmtISO(d);
+  }
+  const isApproved = t => t.approved !== false;
+  function agendaSort(a, b) {
+    if (!!a.due_time !== !!b.due_time) return a.due_time ? -1 : 1;
+    return (a.due_time || '').localeCompare(b.due_time || '') || (a.text || '').localeCompare(b.text || '');
+  }
+  function tasksOn(iso) {
+    return tasks.filter(t => isApproved(t) && t.due_date === iso).sort(agendaSort);
+  }
+  function friendlyDay(iso) {
+    const todayISO = fmtISO(new Date());
+    const base = new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    if (iso === todayISO) return 'Today · ' + base;
+    if (iso === addDaysISO(todayISO, 1)) return 'Tomorrow · ' + base;
+    if (iso === addDaysISO(todayISO, -1)) return 'Yesterday · ' + base;
+    return base;
+  }
+  function selectDay(iso) {
+    selectedDay = iso;
+    taskView = 'day';
+    renderTasks();
+  }
+
   function renderWeekStrip() {
+    weekStrip.style.display = taskView === 'day' ? '' : 'none';
     weekStrip.innerHTML = '';
+    const todayISO = fmtISO(new Date());
+    const inNextWeek = selectedDay >= todayISO && selectedDay <= addDaysISO(todayISO, 6);
+    const startISO = inNextWeek ? todayISO : selectedDay;
     for (let i = 0; i < 7; i++) {
-      const iso = offsetDate(i);
-      const d = new Date(today); d.setDate(today.getDate() + i);
-      const hasTask = tasks.some(t => t.approved !== false && !t.done && t.due_date === iso);
-      const isAi = tasks.some(t => t.approved !== false && !t.done && t.due_date === iso && t.source === 'ai');
+      const iso = addDaysISO(startISO, i);
+      const d = new Date(iso + 'T00:00:00');
+      const open = tasks.filter(t => isApproved(t) && !t.done && t.due_date === iso);
       const box = document.createElement('div');
-      box.className = 'day-box'
-        + (i === 0 ? ' today' : '')
-        + (selectedDayFilter === iso ? ' selected' : '');
+      box.className = 'day-box' + (iso === todayISO ? ' today' : '') + (iso === selectedDay ? ' selected' : '');
       box.innerHTML = `
         <div class="day-name">${dayNames[d.getDay()]}</div>
         <div class="day-num">${d.getDate()}</div>
-        <div class="day-dot ${hasTask ? 'show' : ''} ${isAi ? 'ai' : ''}"></div>
+        <div class="day-dot ${open.length ? 'show' : ''} ${open.some(t => t.source === 'ai') ? 'ai' : ''}"></div>
       `;
-      box.addEventListener('click', () => {
-        selectedDayFilter = (selectedDayFilter === iso) ? null : iso;
-        renderTasks();
-      });
+      box.addEventListener('click', () => selectDay(iso));
       weekStrip.appendChild(box);
     }
   }
@@ -974,6 +1062,7 @@
     row.style.opacity = '0';
     setTimeout(() => row.remove(), 150);
     tasks = tasks.filter(t => t.id !== taskId);
+    renderTasks();
     if (String(taskId).startsWith('demo') || String(taskId).startsWith('local-')) {
       loadGlance();
       return;
@@ -1011,7 +1100,8 @@
     panel.style.display = list.length ? '' : 'none';
     countEl.textContent = list.length;
     listEl.innerHTML = '';
-    list.forEach(t => {
+    const shownList = suggestedExpanded ? list : list.slice(0, 3);
+    shownList.forEach(t => {
       const row = document.createElement('div');
       row.className = 'task suggested';
       const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
@@ -1036,71 +1126,363 @@
       });
       listEl.appendChild(row);
     });
+    if (list.length > 3) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'show-more';
+      more.textContent = suggestedExpanded ? 'show fewer' : `show all ${list.length}`;
+      more.addEventListener('click', () => {
+        suggestedExpanded = !suggestedExpanded;
+        renderSuggested(tasks.filter(x => x.approved === false));
+      });
+      listEl.appendChild(more);
+    }
+  }
+
+  const CAL_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`;
+  const CHECK_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+  // mode: 'day' (full controls), 'overdue' / 'undated' (full controls + move to today), 'week' (light)
+  function buildTaskRow(t, mode) {
+    const row = document.createElement('div');
+    row.className = 'task' + (t.done ? ' done' : '');
+    const full = mode !== 'week';
+    const isCal = t.source === 'calendar';
+    const synced = !!t.calendar_event_link;
+    const linked = t.source === 'ai' && !!t.source_email_id;
+    const toToday = mode === 'overdue' || mode === 'undated';
+    const canMove = full && !isCal && !String(t.id).startsWith('demo') && (mode === 'undated' || !!t.due_date);
+
+    let dueText;
+    if (mode === 'overdue') dueText = dueLabel(t.due_date) + (t.due_time ? ' · ' + fmtTime12(t.due_time) : '');
+    else dueText = t.due_time ? fmtTime12(t.due_time) : (isCal ? 'All day' : '');
+
+    row.innerHTML = `
+      <input type="checkbox" ${t.done ? 'checked' : ''}>
+      <span class="task-text ${linked ? 'task-text-linked' : ''}"></span>
+      <span class="tag ${t.source === 'ai' ? 'ai' : isCal ? 'calendar' : 'rule'}">${t.source === 'ai' ? 'AI' : isCal ? 'CALENDAR' : 'MANUAL'}</span>
+      <span class="task-due"></span>
+      ${full ? `<button class="cal-link ${synced ? 'cal-added' : ''}" type="button" title="${synced ? 'Already on Google Calendar' : 'Add to Google Calendar'}" aria-label="Add to Google Calendar">${synced ? CHECK_ICON : CAL_ICON}</button>` : ''}
+      ${canMove ? `<button class="task-move" type="button" title="${toToday ? 'Move to today' : 'Move to the next day'}" aria-label="Move task">${toToday ? 'today' : '→'}</button>` : ''}
+      ${full ? `<button class="task-dismiss" type="button" title="Remove task" aria-label="Remove task">✕</button>` : ''}
+    `;
+    const textEl = row.querySelector('.task-text');
+    textEl.textContent = t.text;
+    row.querySelector('.task-due').textContent = dueText;
+    row.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleTaskDone(t, e.target.checked));
+    if (linked) {
+      textEl.title = 'Open the email this came from';
+      textEl.addEventListener('click', () => jumpToEmail(t.source_email_id));
+    }
+    if (full) {
+      const btn = row.querySelector('.cal-link');
+      if (synced) btn.addEventListener('click', () => window.open(t.calendar_event_link, '_blank'));
+      else btn.addEventListener('click', () => addToRealCalendar(t.text, t.due_date, t.due_time, btn));
+      row.querySelector('.task-dismiss').addEventListener('click', () => deleteTask(t.id, row));
+    }
+    if (canMove) {
+      row.querySelector('.task-move').addEventListener('click', () => {
+        rescheduleTask(t, toToday ? fmtISO(new Date()) : addDaysISO(t.due_date, 1));
+      });
+    }
+    return row;
+  }
+
+  async function rescheduleTask(t, newDate) {
+    const old = t.due_date;
+    t.due_date = newDate;
+    renderTasks();
+    let ok = true;
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${t.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ due_date: newDate }),
+      });
+      ok = res.ok;
+    } catch (err) {
+      ok = false;
+    }
+    if (!ok) {
+      t.due_date = old;
+      renderTasks();
+      alert('Could not move that task. Please try again.');
+      return;
+    }
+    await loadLiveTasks();
+    loadGlance();
+  }
+
+  async function rescheduleMany(list, newDate) {
+    if (!list.length) return;
+    list.forEach(t => { t.due_date = newDate; });
+    renderTasks();
+    let failed = 0;
+    for (const t of list) {
+      try {
+        const res = await fetch(`${API_BASE}/tasks/${t.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ due_date: newDate }),
+        });
+        if (!res.ok) failed++;
+      } catch (err) {
+        failed++;
+      }
+    }
+    if (failed) alert(`${failed} task(s) could not be moved. Reloading your list.`);
+    await loadLiveTasks();
+    loadGlance();
+  }
+
+  function renderOverdue(todayISO) {
+    const box = document.getElementById('overdueBox');
+    const overdue = tasks
+      .filter(t => isApproved(t) && !t.done && t.due_date && t.due_date < todayISO)
+      .sort((a, b) => a.due_date.localeCompare(b.due_date) || agendaSort(a, b));
+    if (selectedDay !== todayISO || overdue.length === 0) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.className = 'overdue-box';
+    box.innerHTML = `<div class="overdue-head"><span class="overdue-title">⚠ Overdue (${overdue.length})</span><button type="button" class="overdue-all">move all to today</button></div><div class="overdue-list"></div>`;
+    box.querySelector('.overdue-all').addEventListener('click', () => {
+      rescheduleMany(overdue.filter(t => !String(t.id).startsWith('gcal-')), todayISO);
+    });
+    const listEl = box.querySelector('.overdue-list');
+    (overdueExpanded ? overdue : overdue.slice(0, 3)).forEach(t => listEl.appendChild(buildTaskRow(t, 'overdue')));
+    if (overdue.length > 3) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'show-more';
+      more.textContent = overdueExpanded ? 'show fewer' : `show all ${overdue.length}`;
+      more.addEventListener('click', () => { overdueExpanded = !overdueExpanded; renderTasks(); });
+      box.appendChild(more);
+    }
+  }
+
+  function renderTomorrow() {
+    const box = document.getElementById('tomorrowBox');
+    const todayISO = fmtISO(new Date());
+    const next = addDaysISO(selectedDay, 1);
+    const items = tasksOn(next).filter(t => !t.done);
+    const label = next === addDaysISO(todayISO, 1) ? 'Tomorrow' : 'Next day';
+    const nextDate = new Date(next + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    box.style.display = '';
+    box.className = 'tomorrow-box';
+    box.innerHTML = `<div class="tomorrow-head"><span class="tomorrow-title">${label} · ${nextDate}</span><span class="tomorrow-count"></span><button type="button" class="show-more tomorrow-go">open</button></div><div class="tomorrow-list"></div>`;
+    box.querySelector('.tomorrow-count').textContent = items.length ? `${items.length} planned` : 'nothing planned yet';
+    box.querySelector('.tomorrow-go').addEventListener('click', () => selectDay(next));
+    const listEl = box.querySelector('.tomorrow-list');
+    items.slice(0, 3).forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'tomorrow-item';
+      const time = document.createElement('span');
+      time.className = 'tomorrow-time';
+      time.textContent = t.due_time ? fmtTime12(t.due_time) : (t.source === 'calendar' ? 'All day' : 'Anytime');
+      const text = document.createElement('span');
+      text.textContent = t.text;
+      row.append(time, text);
+      row.addEventListener('click', () => selectDay(next));
+      listEl.appendChild(row);
+    });
+    if (items.length > 3) {
+      const more = document.createElement('div');
+      more.className = 'tomorrow-more';
+      more.textContent = `+ ${items.length - 3} more`;
+      listEl.appendChild(more);
+    }
+    if (items.length === 0) {
+      const plan = document.createElement('button');
+      plan.type = 'button';
+      plan.className = 'show-more';
+      plan.textContent = '+ plan it';
+      plan.addEventListener('click', () => openTaskForm(next));
+      listEl.appendChild(plan);
+    }
+  }
+
+  function renderUndated(todayISO) {
+    const box = document.getElementById('undatedBox');
+    const undated = tasks.filter(t => isApproved(t) && !t.due_date && t.source !== 'calendar');
+    if (selectedDay !== todayISO || undated.length === 0) { box.style.display = 'none'; return; }
+    const openCount = undated.filter(t => !t.done).length;
+    box.style.display = '';
+    box.className = 'undated-box';
+    box.innerHTML = '';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'undated-toggle';
+    toggle.textContent = `${undatedOpen ? '▾' : '▸'} No due date (${openCount} open)`;
+    toggle.addEventListener('click', () => { undatedOpen = !undatedOpen; renderTasks(); });
+    box.appendChild(toggle);
+    if (undatedOpen) {
+      const listEl = document.createElement('div');
+      listEl.style.marginTop = '8px';
+      undated.forEach(t => listEl.appendChild(buildTaskRow(t, 'undated')));
+      box.appendChild(listEl);
+    }
+  }
+
+  function renderDayView() {
+    const todayISO = fmtISO(new Date());
+    const list = tasksOn(selectedDay);
+    const doneCount = list.filter(t => t.done).length;
+    document.getElementById('dayLabel').textContent = friendlyDay(selectedDay);
+
+    if (list.length) {
+      const pct = Math.round((doneCount / list.length) * 100);
+      counterEl.innerHTML = `<b>${doneCount}</b> of ${list.length} done<span class="day-bar"><span class="day-bar-fill" style="width:${pct}%"></span></span>`;
+    } else {
+      counterEl.innerHTML = '';
+    }
+
+    taskList.innerHTML = '';
+    if (list.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'task-filter-empty';
+      empty.textContent = selectedDay === todayISO ? 'Nothing planned for today.' : 'Nothing planned for this day.';
+      taskList.appendChild(empty);
+    }
+    list.forEach(t => taskList.appendChild(buildTaskRow(t, 'day')));
+    if (list.length && doneCount === list.length) {
+      const clear = document.createElement('p');
+      clear.className = 'task-allclear';
+      clear.textContent = '✓ All done for this day.';
+      taskList.appendChild(clear);
+    }
+    renderOverdue(todayISO);
+    renderTomorrow();
+    renderUndated(todayISO);
+  }
+
+  function renderWeekView() {
+    const fmt = { month: 'short', day: 'numeric' };
+    const end = addDaysISO(selectedDay, 6);
+    document.getElementById('dayLabel').textContent =
+      `${new Date(selectedDay + 'T00:00:00').toLocaleDateString(undefined, fmt)} – ${new Date(end + 'T00:00:00').toLocaleDateString(undefined, fmt)}`;
+    let openTotal = 0;
+    taskList.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const iso = addDaysISO(selectedDay, i);
+      const items = tasksOn(iso);
+      const open = items.filter(t => !t.done).length;
+      openTotal += open;
+      const group = document.createElement('div');
+      group.className = 'week-group';
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'week-group-head';
+      const name = document.createElement('span');
+      name.textContent = friendlyDay(iso);
+      head.appendChild(name);
+      if (open) {
+        const badge = document.createElement('span');
+        badge.className = 'week-group-count';
+        badge.textContent = open;
+        head.appendChild(badge);
+      }
+      head.addEventListener('click', () => selectDay(iso));
+      group.appendChild(head);
+      if (items.length === 0) {
+        const none = document.createElement('div');
+        none.className = 'week-none';
+        none.textContent = '—';
+        group.appendChild(none);
+      } else {
+        items.forEach(t => group.appendChild(buildTaskRow(t, 'week')));
+      }
+      taskList.appendChild(group);
+    }
+    counterEl.innerHTML = `<b>${openTotal}</b> open in these 7 days`;
+  }
+
+  function renderMonthView() {
+    const todayISO = fmtISO(new Date());
+    const y = monthCursor.getFullYear(), m = monthCursor.getMonth();
+    document.getElementById('dayLabel').textContent = monthCursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    counterEl.innerHTML = '';
+    taskList.innerHTML = '';
+    const first = new Date(y, m, 1);
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const rows = Math.ceil((first.getDay() + daysInMonth) / 7);
+    const grid = document.createElement('div');
+    grid.className = 'month-grid';
+    dayNames.forEach(n => {
+      const h = document.createElement('div');
+      h.className = 'month-head';
+      h.textContent = n;
+      grid.appendChild(h);
+    });
+    for (let i = 0; i < rows * 7; i++) {
+      const d = new Date(y, m, 1 - first.getDay() + i);
+      const iso = fmtISO(d);
+      const open = tasksOn(iso).filter(t => !t.done);
+      const cell = document.createElement('div');
+      cell.className = 'month-cell' + (d.getMonth() === m ? '' : ' out') + (iso === todayISO ? ' today' : '') + (iso === selectedDay ? ' selected' : '');
+      const num = document.createElement('div');
+      num.className = 'month-num';
+      const numText = document.createElement('span');
+      numText.textContent = d.getDate();
+      num.appendChild(numText);
+      if (open.length) {
+        const badge = document.createElement('span');
+        badge.className = 'month-count';
+        badge.textContent = open.length;
+        num.appendChild(badge);
+      }
+      cell.appendChild(num);
+      open.slice(0, 2).forEach(t => {
+        const line = document.createElement('div');
+        line.className = 'month-item';
+        line.textContent = (t.due_time ? fmtTime12(t.due_time).replace(':00', '') + ' ' : '') + t.text;
+        cell.appendChild(line);
+      });
+      if (open.length > 2) {
+        const more = document.createElement('div');
+        more.className = 'month-more';
+        more.textContent = `+${open.length - 2} more`;
+        cell.appendChild(more);
+      }
+      cell.addEventListener('click', () => selectDay(iso));
+      grid.appendChild(cell);
+    }
+    taskList.appendChild(grid);
   }
 
   function renderTasks() {
-    taskList.innerHTML = '';
-    const approvedTasks = tasks.filter(t => t.approved !== false);
-    const suggestedTasks = tasks.filter(t => t.approved === false);
-    const visibleTasks = selectedDayFilter ? approvedTasks.filter(t => t.due_date === selectedDayFilter) : approvedTasks;
-
-    if (visibleTasks.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'task-filter-empty';
-      empty.textContent = selectedDayFilter ? 'Nothing due this day.' : 'No tasks yet.';
-      taskList.appendChild(empty);
-    }
-
-    visibleTasks.forEach(t => {
-      const row = document.createElement('div');
-      row.className = 'task' + (t.done ? ' done' : '');
-      const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
-      const synced = !!t.calendar_event_link;
-      const linked = t.source === 'ai' && !!t.source_email_id;
-      row.innerHTML = `
-        <input type="checkbox" ${t.done ? 'checked' : ''}>
-        <span class="task-text ${linked ? 'task-text-linked' : ''}" ${linked ? 'title="Open the email this came from"' : ''}>${t.text}</span>
-        <span class="tag ${t.source === 'ai' ? 'ai' : t.source === 'calendar' ? 'calendar' : 'rule'}">${t.source === 'ai' ? 'AI' : t.source === 'calendar' ? 'CALENDAR' : 'MANUAL'}</span>
-        <span class="task-due">${dueLabel(t.due_date)}${timeLabel}</span>
-        <button class="cal-link ${synced ? 'cal-added' : ''}" type="button" title="${synced ? 'Already on Google Calendar' : 'Add to Google Calendar'}" aria-label="Add to Google Calendar">
-          ${synced
-            ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
-            : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`}
-        </button>
-        <button class="task-dismiss" type="button" title="Remove task" aria-label="Remove task">✕</button>
-      `;
-      row.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleTaskDone(t, e.target.checked));
-      if (linked) {
-        row.querySelector('.task-text-linked').addEventListener('click', () => jumpToEmail(t.source_email_id));
-      }
-      const btn = row.querySelector('.cal-link');
-      if (synced) {
-        btn.addEventListener('click', () => window.open(t.calendar_event_link, '_blank'));
-      } else {
-        btn.addEventListener('click', () => addToRealCalendar(t.text, t.due_date, t.due_time, btn));
-      }
-      row.querySelector('.task-dismiss').addEventListener('click', () => deleteTask(t.id, row));
-      taskList.appendChild(row);
-    });
-
-    const open = approvedTasks.filter(t => !t.done).length;
-    if (selectedDayFilter) {
-      const d = new Date(selectedDayFilter + 'T00:00:00');
-      const label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-      counterEl.innerHTML = `Showing <b>${label}</b> · <a href="#" id="clearDayFilter">show all</a>`;
-      const clearLink = document.getElementById('clearDayFilter');
-      clearLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        selectedDayFilter = null;
-        renderTasks();
-      });
-    } else {
-      counterEl.innerHTML = `<b>${open}</b> of ${approvedTasks.length} open`;
-    }
-    renderSuggested(suggestedTasks);
+    document.querySelectorAll('.view-pill').forEach(p => p.classList.toggle('on', p.dataset.view === taskView));
+    renderSuggested(tasks.filter(t => t.approved === false));
     renderWeekStrip();
+    if (taskView === 'day') {
+      renderDayView();
+    } else {
+      ['overdueBox', 'tomorrowBox', 'undatedBox'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+      if (taskView === 'week') renderWeekView(); else renderMonthView();
+    }
   }
   renderTasks();
+
+  function stepTasks(dir) {
+    if (taskView === 'day') selectedDay = addDaysISO(selectedDay, dir);
+    else if (taskView === 'week') selectedDay = addDaysISO(selectedDay, 7 * dir);
+    else monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + dir, 1);
+    renderTasks();
+  }
+  document.getElementById('dayPrev').addEventListener('click', () => stepTasks(-1));
+  document.getElementById('dayNext').addEventListener('click', () => stepTasks(1));
+  document.getElementById('dayToday').addEventListener('click', () => {
+    const now = new Date();
+    selectedDay = fmtISO(now);
+    monthCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderTasks();
+  });
+  document.querySelectorAll('.view-pill').forEach(p => p.addEventListener('click', () => {
+    taskView = p.dataset.view;
+    if (taskView === 'month') {
+      const d = new Date(selectedDay + 'T00:00:00');
+      monthCursor = new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+    renderTasks();
+  }));
 
   // ---- add your own task ----
   const addTaskForm = document.getElementById('addTaskForm');
@@ -1117,6 +1499,7 @@
 
       const localTask = { id: 'local-' + Date.now(), text, due_date, due_time, source: 'manual', done: false };
       tasks.push(localTask);
+      if (due_date) { selectedDay = due_date; taskView = 'day'; }
       renderTasks();
       textInput.value = ''; dateInput.value = ''; timeInput.value = '';
       addTaskForm.classList.remove('open');
@@ -1140,14 +1523,17 @@
     });
   }
 
+  function openTaskForm(dateISO) {
+    document.getElementById('newTaskDate').value = dateISO || selectedDay;
+    addTaskForm.classList.add('open');
+    addTaskToggle.style.display = 'none';
+    document.getElementById('newTaskText').focus();
+  }
+
   const addTaskToggle = document.getElementById('addTaskToggle');
   const addTaskCancel = document.getElementById('addTaskCancel');
   if (addTaskToggle) {
-    addTaskToggle.addEventListener('click', () => {
-      addTaskForm.classList.add('open');
-      addTaskToggle.style.display = 'none';
-      document.getElementById('newTaskText').focus();
-    });
+    addTaskToggle.addEventListener('click', () => openTaskForm());
   }
   if (addTaskCancel) {
     addTaskCancel.addEventListener('click', () => {
