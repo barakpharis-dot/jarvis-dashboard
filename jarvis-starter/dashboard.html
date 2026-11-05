@@ -454,6 +454,14 @@
   .today-item:last-child{border-bottom:none;}
   .today-time{font-family:'JetBrains Mono', monospace;font-size:11.5px;color:var(--teal);min-width:76px;flex-shrink:0;}
   .today-text{min-width:0;overflow-wrap:anywhere;}
+  .today-item{align-items:center;}
+  .today-check{accent-color:var(--teal);width:15px;height:15px;flex-shrink:0;cursor:pointer;margin:0;}
+  .today-item.done .today-text{text-decoration:line-through;color:var(--text-dim);}
+  .today-item.done .today-time{color:var(--text-dim);}
+  .social-add-day{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;width:20px;height:20px;line-height:1;font-size:14px;cursor:pointer;padding:0;}
+  .social-add-day:hover{border-color:var(--teal);color:var(--teal);}
+  .social-check{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--text-dim);}
+  .social-check input{accent-color:var(--teal);}
   .glance-item-check{align-items:center;}
   .glance-check{accent-color:var(--teal);width:15px;height:15px;flex-shrink:0;cursor:pointer;}
   .glance-item-text{flex:1;min-width:0;overflow-wrap:anywhere;}
@@ -780,12 +788,13 @@
       </div>
     </div>
 
-    <button type="button" class="add-task-toggle" id="socialAddToggle">+ Add a social event</button>
+    <button type="button" class="add-task-toggle" id="socialAddToggle">+ Add an event</button>
     <form class="add-task-form" id="socialAddForm">
       <input type="text" id="socialTitle" placeholder="What's the plan?" required>
       <input type="date" id="socialDate" required>
       <input type="time" id="socialStart">
       <input type="time" id="socialEnd">
+      <label class="social-check"><input type="checkbox" id="socialIsSocial" checked> social</label>
       <button type="submit">Add</button>
       <button type="button" class="add-task-cancel" id="socialAddCancel">Cancel</button>
     </form>
@@ -1565,7 +1574,7 @@
     if (!box) return;
     title.textContent = 'Today · ' + new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     const todays = allTasks
-      .filter(t => t.approved !== false && !t.done && t.due_date === todayISO)
+      .filter(t => t.approved !== false && t.due_date === todayISO)
       .sort((a, b) => {
         if (!!a.due_time !== !!b.due_time) return a.due_time ? -1 : 1;
         return (a.due_time || '').localeCompare(b.due_time || '');
@@ -1577,16 +1586,45 @@
     }
     todays.forEach(t => {
       const row = document.createElement('div');
-      row.className = 'today-item';
+      row.className = 'today-item' + (t.done ? ' done' : '');
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'today-check';
+      check.checked = !!t.done;
+      check.title = 'Cross it off';
       const time = document.createElement('span');
       time.className = 'today-time';
       time.textContent = t.due_time ? fmtTime12(t.due_time) : (t.source === 'calendar' ? 'All day' : 'Anytime');
       const text = document.createElement('span');
       text.className = 'today-text';
       text.textContent = t.text;
-      row.append(time, text);
+      check.addEventListener('change', () => todayToggle(t, check, row));
+      row.append(check, time, text);
       box.appendChild(row);
     });
+  }
+
+  async function todayToggle(t, check, row) {
+    const done = check.checked;
+    row.classList.toggle('done', done);
+    let ok = true;
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${t.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done }),
+      });
+      ok = res.ok;
+    } catch (err) {
+      ok = false;
+    }
+    if (!ok) {
+      check.checked = !done;
+      row.classList.toggle('done', !done);
+      alert('Could not save that. Please try again.');
+      return;
+    }
+    await Promise.all([loadGlance(), loadLiveTasks()]);
   }
 
   function buildDueItem(t, todayISO) {
@@ -1685,6 +1723,13 @@
       const col = document.createElement('div');
       col.className = 'social-day' + (iso === todayISO ? ' today' : '');
       col.innerHTML = `<div class="social-day-head"><span class="social-day-name">${dayNames[d.getDay()]}</span><span class="social-day-num">${d.getDate()}</span></div>`;
+      const plus = document.createElement('button');
+      plus.type = 'button';
+      plus.className = 'social-add-day';
+      plus.textContent = '+';
+      plus.title = 'Add an event on this day';
+      plus.addEventListener('click', () => openSocialForm(iso));
+      col.querySelector('.social-day-head').appendChild(plus);
       const dayEvents = socialEvents
         .filter(e => e.date === iso && (socialMode === 'all' || e.social))
         .sort((a, b) => {
@@ -1756,12 +1801,14 @@
 
   const socialAddForm = document.getElementById('socialAddForm');
   const socialAddToggle = document.getElementById('socialAddToggle');
-  socialAddToggle.addEventListener('click', () => {
-    document.getElementById('socialDate').value = fmtISO(new Date());
+  function openSocialForm(dateISO) {
+    document.getElementById('socialDate').value = dateISO || fmtISO(new Date());
     socialAddForm.classList.add('open');
     socialAddToggle.style.display = 'none';
     document.getElementById('socialTitle').focus();
-  });
+    if (socialAddForm.scrollIntoView) socialAddForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  socialAddToggle.addEventListener('click', () => openSocialForm());
   document.getElementById('socialAddCancel').addEventListener('click', () => {
     socialAddForm.classList.remove('open');
     socialAddToggle.style.display = '';
@@ -1772,21 +1819,26 @@
     const date = document.getElementById('socialDate').value;
     const time = document.getElementById('socialStart').value || null;
     const end_time = document.getElementById('socialEnd').value || null;
+    const social = document.getElementById('socialIsSocial').checked;
     if (!title || !date) return;
     try {
       const res = await fetch(`${API_BASE}/social/event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, date, time, end_time }),
+        body: JSON.stringify({ title, date, time, end_time, social }),
       });
-      if (!res.ok) throw new Error('failed');
+      if (!res.ok) throw new Error('error ' + res.status);
+      if (!social && socialMode === 'social') {
+        socialMode = 'all';
+        document.querySelectorAll('.social-pill').forEach(x => x.classList.toggle('on', x.dataset.mode === 'all'));
+      }
       socialAddForm.reset();
       socialAddForm.classList.remove('open');
       socialAddToggle.style.display = '';
       socialWeekStart = startOfWeek(new Date(date + 'T00:00:00'));
       loadSocial();
     } catch (err) {
-      alert('Could not add that event. Please try again.');
+      alert('Could not add that event (' + err.message + '). Please try again.');
     }
   });
 
