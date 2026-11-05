@@ -1104,7 +1104,7 @@
     shownList.forEach(t => {
       const row = document.createElement('div');
       row.className = 'task suggested';
-      const timeLabel = t.due_time ? ` · ${t.due_time}` : '';
+      const timeLabel = t.due_time ? ` · ${fmtTime12(t.due_time)}` : '';
       const linked = !!t.source_email_id;
       row.innerHTML = `
         <input type="checkbox" class="suggest-check" title="Add to my tasks">
