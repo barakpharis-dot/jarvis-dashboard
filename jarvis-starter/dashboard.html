@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('jarvis-theme') || 'black'); }
+  catch (e) { document.documentElement.setAttribute('data-theme', 'black'); }
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JARVIS — personal ops deck</title>
@@ -22,6 +26,14 @@
     --violet: #9B8FE0;
     --red: #E0685F;
   }
+  :root[data-theme="black"]{
+    --bg: #000000;
+    --panel: #0C0C0F;
+    --panel-alt: #151519;
+    --border: #2B2B33;
+    --text: #F5F5F8;
+    --text-dim: #A3A3AE;
+  }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   .topnav{
@@ -36,6 +48,13 @@
     scrollbar-width:none;
   }
   .topnav-inner::-webkit-scrollbar{display:none;}
+  .theme-toggle{
+    margin-left:auto;flex-shrink:0;cursor:pointer;
+    font-family:'JetBrains Mono', monospace;font-size:11px;
+    background:transparent;color:var(--text-dim);border:1px solid var(--border);
+    border-radius:12px;padding:4px 10px;
+  }
+  .theme-toggle:hover{color:var(--teal);border-color:var(--teal);}
   .topnav-brand{
     text-shadow:0 0 14px rgba(194,101,255,0.6);
     font-family:'JetBrains Mono', monospace;font-weight:700;font-size:13px;
@@ -492,6 +511,10 @@
   .social-time{font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--teal);margin-bottom:2px;}
   .social-title{display:block;font-size:12.5px;color:var(--text);text-decoration:none;overflow-wrap:anywhere;}
   a.social-title:hover{text-decoration:underline;}
+  .social-actions{display:flex;gap:12px;margin-top:6px;}
+  .social-act{background:transparent;border:none;padding:0;font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--text-dim);cursor:pointer;}
+  .social-act:hover{color:var(--teal);}
+  .social-act.del:hover{color:var(--red);}
   .social-loc{font-size:11px;color:var(--text-dim);margin-top:2px;overflow-wrap:anywhere;}
 
   .suggested-panel{
@@ -594,6 +617,7 @@
     <a class="nav-link" href="#social">social</a>
     <a class="nav-link" href="#costs">costs</a>
     <a class="nav-link" href="#recipe">recipe</a>
+    <button type="button" id="themeToggle" class="theme-toggle" title="Switch background color"></button>
   </div>
 </nav>
 
@@ -796,7 +820,7 @@
       <input type="time" id="socialStart">
       <input type="time" id="socialEnd">
       <label class="social-check"><input type="checkbox" id="socialIsSocial" checked> social</label>
-      <button type="submit">Add</button>
+      <button type="submit" id="socialSubmitBtn">Add</button>
       <button type="button" class="add-task-cancel" id="socialAddCancel">Cancel</button>
     </form>
 
@@ -1705,7 +1729,46 @@
       loc.textContent = e.location;
       card.appendChild(loc);
     }
+    const actions = document.createElement('div');
+    actions.className = 'social-actions';
+    if (!e.multi_day) {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'social-act';
+      edit.textContent = 'edit';
+      edit.addEventListener('click', () => openSocialEdit(e));
+      actions.appendChild(edit);
+    }
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'social-act del';
+    del.textContent = 'delete';
+    del.addEventListener('click', () => deleteSocialEvent(e));
+    actions.appendChild(del);
+    card.appendChild(actions);
     return card;
+  }
+
+  async function errorText(res) {
+    try {
+      const j = await res.json();
+      if (j && j.error) return j.error;
+    } catch (err) { /* no readable message */ }
+    return 'error ' + res.status;
+  }
+
+  async function deleteSocialEvent(e) {
+    if (!confirm(`Delete "${e.title}" from your Google Calendar?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/calendar/event/${encodeURIComponent(e.id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await errorText(res));
+      socialEvents = socialEvents.filter(x => x.id !== e.id);
+      renderSocial();
+      loadLiveTasks();
+      loadGlance();
+    } catch (err) {
+      alert('Could not delete that event (' + err.message + ').');
+    }
   }
 
   function renderSocial() {
@@ -1802,7 +1865,25 @@
 
   const socialAddForm = document.getElementById('socialAddForm');
   const socialAddToggle = document.getElementById('socialAddToggle');
+  let socialEditing = null;
+
+  function openSocialEdit(e) {
+    socialEditing = e;
+    document.getElementById('socialTitle').value = e.title;
+    document.getElementById('socialDate').value = e.date;
+    document.getElementById('socialStart').value = e.start_time || '';
+    document.getElementById('socialEnd').value = e.end_time || '';
+    document.getElementById('socialIsSocial').checked = !!e.social;
+    document.getElementById('socialSubmitBtn').textContent = 'Save';
+    socialAddForm.classList.add('open');
+    socialAddToggle.style.display = 'none';
+    document.getElementById('socialTitle').focus();
+    if (socialAddForm.scrollIntoView) socialAddForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   function openSocialForm(dateISO) {
+    socialEditing = null;
+    document.getElementById('socialSubmitBtn').textContent = 'Add';
     document.getElementById('socialDate').value = dateISO || fmtISO(new Date());
     socialAddForm.classList.add('open');
     socialAddToggle.style.display = 'none';
@@ -1811,6 +1892,9 @@
   }
   socialAddToggle.addEventListener('click', () => openSocialForm());
   document.getElementById('socialAddCancel').addEventListener('click', () => {
+    socialEditing = null;
+    socialAddForm.reset();
+    document.getElementById('socialSubmitBtn').textContent = 'Add';
     socialAddForm.classList.remove('open');
     socialAddToggle.style.display = '';
   });
@@ -1822,26 +1906,60 @@
     const end_time = document.getElementById('socialEnd').value || null;
     const social = document.getElementById('socialIsSocial').checked;
     if (!title || !date) return;
+    const editing = socialEditing;
     try {
-      const res = await fetch(`${API_BASE}/social/event`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, date, time, end_time, social }),
-      });
-      if (!res.ok) throw new Error('error ' + res.status);
+      let res;
+      if (editing) {
+        res = await fetch(`${API_BASE}/calendar/event/${encodeURIComponent(editing.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, date, time, end_time }),
+        });
+      } else {
+        res = await fetch(`${API_BASE}/social/event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, date, time, end_time, social }),
+        });
+      }
+      if (!res.ok) throw new Error(await errorText(res));
+      if (editing && social !== !!editing.social) {
+        await fetch(`${API_BASE}/social/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_id: editing.id, social }),
+        });
+      }
       if (!social && socialMode === 'social') {
         socialMode = 'all';
         document.querySelectorAll('.social-pill').forEach(x => x.classList.toggle('on', x.dataset.mode === 'all'));
       }
+      socialEditing = null;
       socialAddForm.reset();
+      document.getElementById('socialSubmitBtn').textContent = 'Add';
       socialAddForm.classList.remove('open');
       socialAddToggle.style.display = '';
       socialWeekStart = startOfWeek(new Date(date + 'T00:00:00'));
       loadSocial();
+      loadLiveTasks();
+      loadGlance();
     } catch (err) {
-      alert('Could not add that event (' + err.message + '). Please try again.');
+      alert((editing ? 'Could not save that change' : 'Could not add that event') + ' (' + err.message + ').');
     }
   });
+
+  // ---- background theme switch (black / navy) ----
+  const themeToggle = document.getElementById('themeToggle');
+  function showTheme() {
+    themeToggle.textContent = '● ' + document.documentElement.getAttribute('data-theme');
+  }
+  themeToggle.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'black' ? 'navy' : 'black';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('jarvis-theme', next); } catch (err) { /* private mode: just won't be remembered */ }
+    showTheme();
+  });
+  showTheme();
 
   // ---- sync now button ----
   const syncNowBtn = document.getElementById('syncNowBtn');

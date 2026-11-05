@@ -285,9 +285,10 @@ def calendar_week(start: str):
         if "date" in s:
             day = datetime.fromisoformat(s["date"]).date()
             last = datetime.fromisoformat(en["date"]).date() if "date" in en else day + timedelta(days=1)
+            multi_day = (last - day).days > 1
             day, last = max(day, start_date), min(last, end_date)
             while day < last:
-                events.append({**base, "date": day.isoformat(), "all_day": True, "start_time": None, "end_time": None})
+                events.append({**base, "date": day.isoformat(), "all_day": True, "start_time": None, "end_time": None, "multi_day": multi_day})
                 day += timedelta(days=1)
         elif "dateTime" in s:
             sdt = datetime.fromisoformat(s["dateTime"])
@@ -297,8 +298,77 @@ def calendar_week(start: str):
             events.append({
                 **base, "date": sdt.date().isoformat(), "all_day": False,
                 "start_time": sdt.strftime("%H:%M"), "end_time": edt.strftime("%H:%M") if edt else None,
+                "multi_day": bool(edt and edt.date() != sdt.date()),
             })
     return events
+
+
+def _http_status(e):
+    return getattr(getattr(e, "resp", None), "status", None)
+
+
+@app.delete("/calendar/event/{event_id}")
+def delete_calendar_event(event_id: str):
+    """Deletes an event from Google Calendar and forgets any social/done marks for it."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    try:
+        service = get_calendar_service(creds)
+        service.events().delete(calendarId="primary", eventId=event_id).execute()
+    except Exception as e:
+        status = _http_status(e)
+        if status not in (404, 410):  # already gone counts as deleted
+            print(f"Could not delete calendar event {event_id}: {e}")
+            if status == 403:
+                return JSONResponse({"error": "Google won't let this account delete that event"}, status_code=403)
+            return JSONResponse({"error": "could not delete the event"}, status_code=502)
+    for table in ("social_events", "calendar_done"):
+        try:
+            supabase.table(table).delete().eq("event_id", event_id).execute()
+        except Exception as e:
+            print(f"Could not clean up {table} for {event_id}: {e}")
+    return {"status": "deleted"}
+
+
+@app.patch("/calendar/event/{event_id}")
+def edit_calendar_event(event_id: str, payload: dict):
+    """payload = {"title": "...", "date": "YYYY-MM-DD", "time": "HH:MM" (optional), "end_time": "HH:MM" (optional)}"""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    title = (payload.get("title") or "").strip()
+    date = payload.get("date")
+    if not title or not date:
+        return JSONResponse({"error": "title and date are required"}, status_code=400)
+    time = (payload.get("time") or "")[:5] or None
+    end_time = (payload.get("end_time") or "")[:5] or None
+    try:
+        service = get_calendar_service(creds)
+        ev = service.events().get(calendarId="primary", eventId=event_id).execute()
+        ev["summary"] = title
+        if time:
+            start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+            end_dt = start_dt + timedelta(hours=1)
+            if end_time:
+                candidate = datetime.fromisoformat(f"{date}T{end_time}:00")
+                if candidate > start_dt:
+                    end_dt = candidate
+            ev["start"] = {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"}
+            ev["end"] = {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"}
+        else:
+            next_day = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
+            ev["start"] = {"date": date}
+            ev["end"] = {"date": next_day}
+        updated = service.events().update(calendarId="primary", eventId=event_id, body=ev).execute()
+    except ValueError:
+        return JSONResponse({"error": "that date or time doesn't look right"}, status_code=400)
+    except Exception as e:
+        print(f"Could not edit calendar event {event_id}: {e}")
+        if _http_status(e) == 403:
+            return JSONResponse({"error": "Google won't let this account change that event"}, status_code=403)
+        return JSONResponse({"error": "could not save the change"}, status_code=502)
+    return {"status": "updated", "link": updated.get("htmlLink")}
 
 
 @app.post("/social/toggle")
