@@ -83,17 +83,23 @@ def auth_callback(request: Request):
     return JSONResponse({"status": "connected"})
 
 
-def _create_calendar_event(creds, summary, date, time=None):
+def _create_calendar_event(creds, summary, date, time=None, description="Added from JARVIS", end_time=None):
     """Creates a real Google Calendar event. Returns both the id (needed to delete it later) and the link."""
     service = get_calendar_service(creds)
+    time = time[:5] if time else time
+    end_time = end_time[:5] if end_time else end_time
     if time:
         start_dt = datetime.fromisoformat(f"{date}T{time}:00")
         end_dt = start_dt + timedelta(hours=1)
+        if end_time:
+            candidate = datetime.fromisoformat(f"{date}T{end_time}:00")
+            if candidate > start_dt:
+                end_dt = candidate
         event = {
             "summary": summary,
             "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
             "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
-            "description": "Added from JARVIS",
+            "description": description,
         }
     else:
         end_date = (datetime.fromisoformat(date) + timedelta(days=1)).date().isoformat()
@@ -101,7 +107,7 @@ def _create_calendar_event(creds, summary, date, time=None):
             "summary": summary,
             "start": {"date": date},
             "end": {"date": end_date},
-            "description": "Added from JARVIS",
+            "description": description,
         }
     created = service.events().insert(calendarId="primary", body=event).execute()
     return {"id": created.get("id"), "link": created.get("htmlLink")}
@@ -138,6 +144,24 @@ def _fetch_calendar_events(creds, days_ahead=30):
             "calendar_event_link": e.get("htmlLink"),
         })
     return parsed
+
+
+def _social_ids():
+    """Calendar event ids you've marked as social."""
+    try:
+        return {r["event_id"] for r in supabase.table("social_events").select("event_id").execute().data}
+    except Exception as e:
+        print(f"social_events table unavailable: {e}")
+        return set()
+
+
+def _calendar_done_ids():
+    """Calendar events you've checked off in JARVIS (the real event stays on Google Calendar)."""
+    try:
+        return {r["event_id"] for r in supabase.table("calendar_done").select("event_id").execute().data}
+    except Exception as e:
+        print(f"calendar_done table unavailable: {e}")
+        return set()
 
 
 @app.post("/sync")
@@ -217,6 +241,95 @@ def create_calendar_event(payload: dict):
     return {"status": "created", "link": event["link"]}
 
 
+@app.get("/calendar/week")
+def calendar_week(start: str):
+    """start = first day of the week, like 2026-11-08. Returns that week's Google Calendar events."""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    try:
+        start_date = datetime.fromisoformat(start).date()
+    except ValueError:
+        return JSONResponse({"error": "start must look like 2026-11-08"}, status_code=400)
+    end_date = start_date + timedelta(days=7)  # exclusive
+
+    service = get_calendar_service(creds)
+    # ask for a slightly wider window, then keep only events whose date falls inside the week
+    time_min = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=1)).isoformat() + "Z"
+    time_max = (datetime.combine(end_date, datetime.min.time()) + timedelta(days=1)).isoformat() + "Z"
+    try:
+        result = service.events().list(
+            calendarId="primary", timeMin=time_min, timeMax=time_max,
+            singleEvents=True, orderBy="startTime", maxResults=250, timeZone="America/Chicago",
+        ).execute()
+    except Exception as e:
+        print(f"Could not read calendar week: {e}")
+        return JSONResponse({"error": "could not read calendar"}, status_code=502)
+
+    social_ids = _social_ids()
+    events = []
+    for e in result.get("items", []):
+        # events JARVIS made for tasks are tasks, not social plans
+        if (e.get("description") or "").strip() == "Added from JARVIS":
+            continue
+        if e.get("status") == "cancelled":
+            continue
+        s, en = e.get("start", {}), e.get("end", {})
+        base = {
+            "id": e["id"],
+            "title": e.get("summary", "(no title)"),
+            "location": e.get("location"),
+            "link": e.get("htmlLink"),
+            "social": e["id"] in social_ids,
+        }
+        if "date" in s:
+            day = datetime.fromisoformat(s["date"]).date()
+            last = datetime.fromisoformat(en["date"]).date() if "date" in en else day + timedelta(days=1)
+            day, last = max(day, start_date), min(last, end_date)
+            while day < last:
+                events.append({**base, "date": day.isoformat(), "all_day": True, "start_time": None, "end_time": None})
+                day += timedelta(days=1)
+        elif "dateTime" in s:
+            sdt = datetime.fromisoformat(s["dateTime"])
+            if not (start_date <= sdt.date() < end_date):
+                continue
+            edt = datetime.fromisoformat(en["dateTime"]) if "dateTime" in en else None
+            events.append({
+                **base, "date": sdt.date().isoformat(), "all_day": False,
+                "start_time": sdt.strftime("%H:%M"), "end_time": edt.strftime("%H:%M") if edt else None,
+            })
+    return events
+
+
+@app.post("/social/toggle")
+def social_toggle(payload: dict):
+    """payload = {"event_id": "...", "social": true or false}"""
+    event_id = payload["event_id"]
+    if payload.get("social"):
+        supabase.table("social_events").upsert({"event_id": event_id}).execute()
+    else:
+        supabase.table("social_events").delete().eq("event_id", event_id).execute()
+    return {"status": "ok"}
+
+
+@app.post("/social/event")
+def social_event(payload: dict):
+    """payload = {"title": "...", "date": "YYYY-MM-DD", "time": "HH:MM" (optional), "end_time": "HH:MM" (optional)}"""
+    creds = load_credentials()
+    if not creds:
+        return JSONResponse({"error": "not authenticated, visit /auth/start first"}, status_code=401)
+    title = (payload.get("title") or "").strip()
+    date = payload.get("date")
+    if not title or not date:
+        return JSONResponse({"error": "title and date are required"}, status_code=400)
+    event = _create_calendar_event(
+        creds, title, date, payload.get("time") or None,
+        description="Social event added from JARVIS", end_time=payload.get("end_time") or None,
+    )
+    supabase.table("social_events").upsert({"event_id": event["id"]}).execute()
+    return {"status": "created", "id": event["id"], "link": event["link"]}
+
+
 @app.get("/tasks")
 def list_tasks():
     db_tasks = supabase.table("tasks").select("*").order("due_date").execute().data
@@ -230,10 +343,12 @@ def list_tasks():
         print(f"Could not fetch calendar events: {e}")
         return db_tasks
 
+    done_ids = _calendar_done_ids()
     existing_keys = {(t.get("text"), t.get("due_date")) for t in db_tasks}
     merged = list(db_tasks)
     for ev in cal_events:
         if (ev["text"], ev["due_date"]) not in existing_keys:
+            ev["done"] = ev["id"][len("gcal-"):] in done_ids
             merged.append(ev)
     return merged
 
@@ -288,6 +403,17 @@ def approve_task(task_id: str):
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: str, payload: dict):
     """payload = {"done": true or false}"""
+    if task_id.startswith("gcal-"):
+        event_id = task_id[len("gcal-"):]
+        try:
+            if payload["done"]:
+                supabase.table("calendar_done").upsert({"event_id": event_id}).execute()
+            else:
+                supabase.table("calendar_done").delete().eq("event_id", event_id).execute()
+        except Exception as e:
+            print(f"Could not save done state for calendar event {event_id}: {e}")
+            return JSONResponse({"error": "could not save"}, status_code=500)
+        return {"status": "updated"}
     supabase.table("tasks").update({"done": payload["done"]}).eq("id", task_id).execute()
     return {"status": "updated"}
 

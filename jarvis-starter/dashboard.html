@@ -449,6 +449,42 @@
   .cal-link.cal-loading{opacity:0.5;}
   .cal-link.cal-added{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:pointer;}
   .cal-link.cal-error{border-color:var(--red);color:var(--red);}
+  .today-panel{margin-top:20px;}
+  .today-item{display:flex;gap:14px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);}
+  .today-item:last-child{border-bottom:none;}
+  .today-time{font-family:'JetBrains Mono', monospace;font-size:11.5px;color:var(--teal);min-width:76px;flex-shrink:0;}
+  .today-text{min-width:0;overflow-wrap:anywhere;}
+  .glance-item-check{align-items:center;}
+  .glance-check{accent-color:var(--teal);width:15px;height:15px;flex-shrink:0;cursor:pointer;}
+  .glance-item-text{flex:1;min-width:0;overflow-wrap:anywhere;}
+  .glance-x{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:2px 4px;flex-shrink:0;}
+  .glance-x:hover{color:var(--red);}
+
+  .social-controls{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .social-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .social-btn{font-family:'JetBrains Mono', monospace;font-size:12px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;}
+  .social-btn:hover{border-color:var(--teal);}
+  .social-range{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--text-dim);margin-left:6px;}
+  .social-filter{display:flex;gap:6px;}
+  .social-pill{font-family:'JetBrains Mono', monospace;font-size:11.5px;padding:6px 12px;border-radius:14px;border:1px solid var(--border);color:var(--text-dim);background:transparent;cursor:pointer;}
+  .social-pill.on{background:var(--teal-dim);color:var(--teal);border-color:var(--teal);}
+  .social-grid{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:8px;}
+  @media (max-width:900px){ .social-grid{grid-template-columns:1fr;} }
+  .social-day{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:120px;}
+  .social-day.today{border-color:var(--teal);}
+  .social-day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .social-day-name{font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--text-dim);}
+  .social-day-num{font-size:15px;font-weight:500;}
+  .social-none{color:var(--text-dim);font-size:12px;}
+  .social-event{position:relative;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:8px 26px 8px 8px;margin-bottom:6px;}
+  .social-event.is-social{border-left:3px solid var(--teal);}
+  .social-star{position:absolute;top:4px;right:4px;background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;}
+  .social-event.is-social .social-star{color:var(--amber);}
+  .social-time{font-family:'JetBrains Mono', monospace;font-size:10.5px;color:var(--teal);margin-bottom:2px;}
+  .social-title{display:block;font-size:12.5px;color:var(--text);text-decoration:none;overflow-wrap:anywhere;}
+  a.social-title:hover{text-decoration:underline;}
+  .social-loc{font-size:11px;color:var(--text-dim);margin-top:2px;overflow-wrap:anywhere;}
+
   .suggested-panel{
     background:var(--panel);border:1px solid var(--teal-dim);border-radius:10px;
     padding:14px 16px;margin-bottom:18px;
@@ -546,6 +582,7 @@
     <a class="nav-link" href="#parentsquare">parent square</a>
     <a class="nav-link" href="#needsreply">needs reply</a>
     <a class="nav-link" href="#tasks">tasks</a>
+    <a class="nav-link" href="#social">social</a>
     <a class="nav-link" href="#costs">costs</a>
     <a class="nav-link" href="#recipe">recipe</a>
   </div>
@@ -570,6 +607,14 @@
       <div class="pnode">Supabase</div>
       <div class="pline"><div class="ppulse" style="animation-delay:1.8s;"></div></div>
       <div class="pnode">Dashboard</div>
+    </div>
+
+    <div class="glance-panel today-panel">
+      <div class="glance-header">
+        <span class="glance-title" id="todayTitle">Today</span>
+        <a href="#tasks" class="nav-link glance-jump">view tasks</a>
+      </div>
+      <div id="glanceToday" class="glance-body">Loading…</div>
     </div>
 
     <div class="glance-grid">
@@ -716,6 +761,40 @@
   </div>
 </section>
 
+<section id="social" class="page">
+  <div class="wrap">
+    <p class="eyebrow">SOCIAL CALENDAR</p>
+    <h2 class="sec-title">Social calendar</h2>
+    <p class="sec-desc">Your week from Google Calendar. Tap ☆ on the events that are social, then switch to "Social only" to see just those.</p>
+
+    <div class="social-controls">
+      <div class="social-nav">
+        <button type="button" id="socialPrev" class="social-btn" aria-label="Previous week">‹</button>
+        <button type="button" id="socialThisWeek" class="social-btn">This week</button>
+        <button type="button" id="socialNext" class="social-btn" aria-label="Next week">›</button>
+        <span id="socialRange" class="social-range"></span>
+      </div>
+      <div class="social-filter">
+        <button type="button" class="social-pill on" data-mode="all">All events</button>
+        <button type="button" class="social-pill" data-mode="social">Social only</button>
+      </div>
+    </div>
+
+    <button type="button" class="add-task-toggle" id="socialAddToggle">+ Add a social event</button>
+    <form class="add-task-form" id="socialAddForm">
+      <input type="text" id="socialTitle" placeholder="What's the plan?" required>
+      <input type="date" id="socialDate" required>
+      <input type="time" id="socialStart">
+      <input type="time" id="socialEnd">
+      <button type="submit">Add</button>
+      <button type="button" class="add-task-cancel" id="socialAddCancel">Cancel</button>
+    </form>
+
+    <p id="socialStatus" class="sec-desc"></p>
+    <div class="social-grid" id="socialGrid"></div>
+  </div>
+</section>
+
 <section id="costs" class="page">
   <div class="wrap">
     <p class="eyebrow">RUNNING COSTS</p>
@@ -757,7 +836,7 @@
   const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const today = new Date();
 
-  function fmtISO(d) { return d.toISOString().slice(0, 10); }
+  function fmtISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
   function offsetDate(n) { const d = new Date(today); d.setDate(today.getDate() + n); return fmtISO(d); }
 
   let tasks = [];
@@ -838,9 +917,9 @@
   async function toggleTaskDone(task, done) {
     task.done = done;
     renderTasks();
-    if (String(task.id).startsWith('demo') || String(task.id).startsWith('gcal-')) {
+    if (String(task.id).startsWith('demo')) {
       loadGlance();
-      return; // sample or calendar-only, nothing to save
+      return;
     }
     try {
       await fetch(`${API_BASE}/tasks/${task.id}`, {
@@ -855,6 +934,7 @@
   }
 
   async function deleteTask(taskId, row) {
+    if (String(taskId).startsWith('gcal-') && !confirm('This will delete the event from your Google Calendar. Continue?')) return;
     row.style.opacity = '0';
     setTimeout(() => row.remove(), 150);
     tasks = tasks.filter(t => t.id !== taskId);
@@ -1069,6 +1149,7 @@
     pages.forEach(p => p.classList.toggle('active', p.id === id));
     navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
     window.scrollTo(0, 0);
+    if (id === 'social') loadSocial();
   }
 
   navLinks.forEach(link => {
@@ -1456,23 +1537,258 @@
       }
 
       const combined = [...overdue, ...upcoming].slice(0, 6);
+      glanceDue.innerHTML = '';
       if (combined.length === 0) {
         glanceDue.innerHTML = `<p class="glance-empty">Nothing due in the next 7 days.</p>`;
       } else {
-        glanceDue.innerHTML = combined.map(t => {
-          const isOverdue = t.due_date < todayISO;
-          return `
-          <div class="glance-item">
-            <span>${t.text}</span>
-            <span class="glance-item-meta${isOverdue ? ' overdue' : ''}">${isOverdue ? 'overdue · ' : ''}${t.due_date}${t.due_time ? ' · ' + t.due_time : ''}</span>
-          </div>`;
-        }).join('');
+        combined.forEach(t => glanceDue.appendChild(buildDueItem(t, todayISO)));
       }
+      renderToday(allTasks, todayISO);
     } catch (err) {
       glanceDue.innerHTML = `<p class="glance-empty">Could not load — check the live server.</p>`;
+      const gt = document.getElementById('glanceToday');
+      if (gt) gt.innerHTML = `<p class="glance-empty">Could not load — check the live server.</p>`;
     }
   }
   loadGlance();
+
+  // ---- overview helpers: today's agenda and the due-this-week checklist ----
+  function fmtTime12(hhmm) {
+    if (!hhmm) return '';
+    const [h, m] = hhmm.split(':').map(Number);
+    return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  function renderToday(allTasks, todayISO) {
+    const box = document.getElementById('glanceToday');
+    const title = document.getElementById('todayTitle');
+    if (!box) return;
+    title.textContent = 'Today · ' + new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    const todays = allTasks
+      .filter(t => t.approved !== false && !t.done && t.due_date === todayISO)
+      .sort((a, b) => {
+        if (!!a.due_time !== !!b.due_time) return a.due_time ? -1 : 1;
+        return (a.due_time || '').localeCompare(b.due_time || '');
+      });
+    box.innerHTML = '';
+    if (todays.length === 0) {
+      box.innerHTML = `<p class="glance-empty">Nothing on the agenda today.</p>`;
+      return;
+    }
+    todays.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'today-item';
+      const time = document.createElement('span');
+      time.className = 'today-time';
+      time.textContent = t.due_time ? fmtTime12(t.due_time) : (t.source === 'calendar' ? 'All day' : 'Anytime');
+      const text = document.createElement('span');
+      text.className = 'today-text';
+      text.textContent = t.text;
+      row.append(time, text);
+      box.appendChild(row);
+    });
+  }
+
+  function buildDueItem(t, todayISO) {
+    const isOverdue = t.due_date < todayISO;
+    const row = document.createElement('div');
+    row.className = 'glance-item glance-item-check';
+    row.innerHTML = `
+      <input type="checkbox" class="glance-check" title="Mark done">
+      <span class="glance-item-text"></span>
+      <span class="glance-item-meta"></span>
+      <button type="button" class="glance-x" title="Delete" aria-label="Delete">✕</button>`;
+    row.querySelector('.glance-item-text').textContent = t.text;
+    const meta = row.querySelector('.glance-item-meta');
+    meta.textContent = `${isOverdue ? 'overdue · ' : ''}${t.due_date}${t.due_time ? ' · ' + fmtTime12(t.due_time) : ''}`;
+    if (isOverdue) meta.classList.add('overdue');
+    row.querySelector('.glance-check').addEventListener('change', () => glanceMarkDone(t, row));
+    row.querySelector('.glance-x').addEventListener('click', () => glanceDelete(t, row));
+    return row;
+  }
+
+  async function glanceMarkDone(t, row) {
+    row.style.opacity = '0.4';
+    try {
+      await fetch(`${API_BASE}/tasks/${t.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: true }),
+      });
+    } catch (err) {
+      // if it didn't save, the refresh below simply shows the item again
+    }
+    await Promise.all([loadGlance(), loadLiveTasks()]);
+  }
+
+  async function glanceDelete(t, row) {
+    if (String(t.id).startsWith('gcal-') && !confirm('This will delete the event from your Google Calendar. Continue?')) return;
+    row.style.opacity = '0.4';
+    try {
+      await fetch(`${API_BASE}/tasks/${t.id}`, { method: 'DELETE' });
+    } catch (err) {
+      // if it didn't delete, the refresh below simply shows the item again
+    }
+    await Promise.all([loadGlance(), loadLiveTasks()]);
+  }
+
+  // ---- social calendar ----
+  function startOfWeek(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - x.getDay());
+    return x;
+  }
+  let socialWeekStart = startOfWeek(new Date());
+  let socialMode = 'all';
+  let socialEvents = [];
+
+  function buildSocialEvent(e) {
+    const card = document.createElement('div');
+    card.className = 'social-event' + (e.social ? ' is-social' : '');
+    const star = document.createElement('button');
+    star.type = 'button';
+    star.className = 'social-star';
+    star.textContent = e.social ? '★' : '☆';
+    star.title = e.social ? 'Marked as social (click to unmark)' : 'Mark as social';
+    star.addEventListener('click', () => toggleSocial(e));
+    const time = document.createElement('div');
+    time.className = 'social-time';
+    time.textContent = e.all_day ? 'All day' : fmtTime12(e.start_time) + (e.end_time ? ' – ' + fmtTime12(e.end_time) : '');
+    const useLink = e.link && String(e.link).startsWith('https://');
+    const title = document.createElement(useLink ? 'a' : 'div');
+    title.className = 'social-title';
+    title.textContent = e.title;
+    if (useLink) { title.href = e.link; title.target = '_blank'; title.rel = 'noopener'; }
+    card.append(star, time, title);
+    if (e.location) {
+      const loc = document.createElement('div');
+      loc.className = 'social-loc';
+      loc.textContent = e.location;
+      card.appendChild(loc);
+    }
+    return card;
+  }
+
+  function renderSocial() {
+    const grid = document.getElementById('socialGrid');
+    const status = document.getElementById('socialStatus');
+    const range = document.getElementById('socialRange');
+    const end = new Date(socialWeekStart); end.setDate(end.getDate() + 6);
+    const opts = { month: 'short', day: 'numeric' };
+    range.textContent = `${socialWeekStart.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
+    grid.innerHTML = '';
+    const todayISO = fmtISO(new Date());
+    let shown = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(socialWeekStart); d.setDate(d.getDate() + i);
+      const iso = fmtISO(d);
+      const col = document.createElement('div');
+      col.className = 'social-day' + (iso === todayISO ? ' today' : '');
+      col.innerHTML = `<div class="social-day-head"><span class="social-day-name">${dayNames[d.getDay()]}</span><span class="social-day-num">${d.getDate()}</span></div>`;
+      const dayEvents = socialEvents
+        .filter(e => e.date === iso && (socialMode === 'all' || e.social))
+        .sort((a, b) => {
+          if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
+          return (a.start_time || '').localeCompare(b.start_time || '');
+        });
+      if (dayEvents.length === 0) {
+        const none = document.createElement('div');
+        none.className = 'social-none';
+        none.textContent = '—';
+        col.appendChild(none);
+      }
+      dayEvents.forEach(e => { shown++; col.appendChild(buildSocialEvent(e)); });
+      grid.appendChild(col);
+    }
+    status.textContent = shown > 0 ? '' : (socialMode === 'social'
+      ? 'No social events marked this week. Switch to "All events" and tap ☆ on the ones that are social.'
+      : 'Nothing on your calendar this week.');
+  }
+
+  async function loadSocial() {
+    const status = document.getElementById('socialStatus');
+    status.textContent = 'Loading…';
+    try {
+      const res = await fetch(`${API_BASE}/calendar/week?start=${fmtISO(socialWeekStart)}`);
+      if (!res.ok) throw new Error('could not load');
+      socialEvents = await res.json();
+      renderSocial();
+    } catch (err) {
+      document.getElementById('socialGrid').innerHTML = '';
+      status.textContent = 'Could not load your calendar. Try again in a moment, or sign in again at /auth/start.';
+    }
+  }
+
+  async function toggleSocial(e) {
+    const next = !e.social;
+    socialEvents.forEach(x => { if (x.id === e.id) x.social = next; });
+    renderSocial();
+    try {
+      const res = await fetch(`${API_BASE}/social/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: e.id, social: next }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch (err) {
+      socialEvents.forEach(x => { if (x.id === e.id) x.social = !next; });
+      renderSocial();
+      alert('Could not save that. Please try again.');
+    }
+  }
+
+  function shiftSocialWeek(days) {
+    socialWeekStart = new Date(socialWeekStart.getFullYear(), socialWeekStart.getMonth(), socialWeekStart.getDate() + days);
+    loadSocial();
+  }
+  document.getElementById('socialPrev').addEventListener('click', () => shiftSocialWeek(-7));
+  document.getElementById('socialNext').addEventListener('click', () => shiftSocialWeek(7));
+  document.getElementById('socialThisWeek').addEventListener('click', () => {
+    socialWeekStart = startOfWeek(new Date());
+    loadSocial();
+  });
+  document.querySelectorAll('.social-pill').forEach(p => p.addEventListener('click', () => {
+    document.querySelectorAll('.social-pill').forEach(x => x.classList.remove('on'));
+    p.classList.add('on');
+    socialMode = p.dataset.mode;
+    renderSocial();
+  }));
+
+  const socialAddForm = document.getElementById('socialAddForm');
+  const socialAddToggle = document.getElementById('socialAddToggle');
+  socialAddToggle.addEventListener('click', () => {
+    document.getElementById('socialDate').value = fmtISO(new Date());
+    socialAddForm.classList.add('open');
+    socialAddToggle.style.display = 'none';
+    document.getElementById('socialTitle').focus();
+  });
+  document.getElementById('socialAddCancel').addEventListener('click', () => {
+    socialAddForm.classList.remove('open');
+    socialAddToggle.style.display = '';
+  });
+  socialAddForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const title = document.getElementById('socialTitle').value.trim();
+    const date = document.getElementById('socialDate').value;
+    const time = document.getElementById('socialStart').value || null;
+    const end_time = document.getElementById('socialEnd').value || null;
+    if (!title || !date) return;
+    try {
+      const res = await fetch(`${API_BASE}/social/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, date, time, end_time }),
+      });
+      if (!res.ok) throw new Error('failed');
+      socialAddForm.reset();
+      socialAddForm.classList.remove('open');
+      socialAddToggle.style.display = '';
+      socialWeekStart = startOfWeek(new Date(date + 'T00:00:00'));
+      loadSocial();
+    } catch (err) {
+      alert('Could not add that event. Please try again.');
+    }
+  });
 
   // ---- sync now button ----
   const syncNowBtn = document.getElementById('syncNowBtn');
