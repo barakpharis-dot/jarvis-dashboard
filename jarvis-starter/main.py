@@ -29,7 +29,7 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 @app.get("/")
 def serve_dashboard():
-    return FileResponse("dashboard.html")
+        return FileResponse("dashboard-20.html")
 
 
 def save_credentials(creds: dict):
